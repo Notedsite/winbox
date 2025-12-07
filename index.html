@@ -2,471 +2,537 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com/ajax/libs/jszip/;">
-    <title>Winbox Env</title>
-    <!-- ZIP Library -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winbox v2000</title>
+    
+    <!-- 1. JSZip Library (for unzipping) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
-        /* FLASH / UTILITY UI THEME */
+        /* --- FLASH / UTILITY 2000 THEME --- */
         :root {
-            --bg: #808080;
-            --panel-face: #f0f0f0;
-            --panel-border: #696969;
-            --header-bg: #333;
-            --header-text: #ddd;
-            --term-bg: #1a1a1a;
-            --highlight: #0066cc;
+            --bg-body: #666666;
+            --panel-bg: #ece9d8;
+            --panel-border: #999;
+            --header-grad-1: #3e3e3e;
+            --header-grad-2: #222222;
+            --text-main: #333;
+            --highlight: #316ac5;
         }
 
         html, body {
-            height: 100%; width: 100%;
-            margin: 0; padding: 0;
-            background: var(--bg);
-            font-family: Tahoma, Verdana, sans-serif;
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            background: var(--bg-body);
+            font-family: 'Verdana', sans-serif;
             font-size: 11px;
             overflow: hidden;
-            display: flex;
-        }
-
-        /* LAYOUT STRUCTURE */
-        #app-container {
-            display: flex;
-            width: 100%; height: 100%;
-            padding: 4px; box-sizing: border-box;
-            gap: 4px;
-        }
-
-        aside {
-            width: 240px;
             display: flex; flex-direction: column;
-            gap: 4px; flex-shrink: 0;
+            user-select: none;
         }
 
-        main {
-            flex: 1;
-            display: flex; flex-direction: column;
-            gap: 4px;
-            min-width: 0;
+        #stage {
+            flex: 1; display: flex; padding: 4px; gap: 4px; box-sizing: border-box;
         }
 
-        /* PANEL COMPONENTS */
+        /* --- PANEL STYLING --- */
         .panel {
-            border: 1px solid var(--panel-border);
-            background: var(--panel-face);
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            box-shadow: inset 1px 1px 0px #fff;
             display: flex; flex-direction: column;
         }
-
+        
         .panel-head {
-            background: var(--header-bg);
-            color: var(--header-text);
-            padding: 4px 6px;
-            font-weight: bold;
-            display: flex; justify-content: space-between;
-            align-items: center;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: linear-gradient(to bottom, var(--header-grad-1), var(--header-grad-2));
+            color: #ddd; padding: 3px 6px;
+            font-weight: bold; font-size: 10px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #000;
         }
 
         .panel-body {
-            flex: 1;
-            overflow: hidden;
-            position: relative;
-            padding: 0; display: flex; flex-direction: column;
+            flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;
+            padding: 4px;
         }
 
-        /* UTILITY CLASSES */
-        .scroll-y { overflow-y: auto; }
-        .p-2 { padding: 6px; }
+        /* --- SIDEBAR --- */
+        .sidebar { width: 220px; display: flex; flex-direction: column; gap: 4px; }
         
+        .btn-row { display: flex; gap: 2px; margin-top: 5px; justify-content: flex-end; }
         button {
-            background: #e0e0e0; border: 1px solid #444;
-            padding: 2px 8px; font-size: 10px; cursor: pointer;
-            box-shadow: 1px 1px 0 #fff inset;
+            background: linear-gradient(#f9f9f9, #e3e3e3);
+            border: 1px solid #707070; padding: 3px 8px; cursor: pointer; font-size: 10px;
         }
-        button:active { box-shadow: none; background: #ccc; }
-
-        /* SPECIFIC MODULES */
+        button:active { background: #ccc; box-shadow: inset 1px 1px 2px #555; }
         
-        /* Stats Box */
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-        .stat-bar-box { background: #333; height: 8px; flex:1; margin-left: 5px; position:relative; }
-        .stat-bar-fill { background: var(--highlight); height: 100%; width: 0%; }
+        /* Stats Meters */
+        .meter-container { background: #333; height: 10px; border: 1px inset; margin-bottom: 2px; width: 100%; }
+        .meter-fill { height: 100%; width: 0%; transition: width 0.2s; }
+        .stat-label { font-size: 9px; color: #555; margin-bottom: 1px; display: flex; justify-content: space-between; }
+
+        /* File Tree */
+        ul#file-list {
+            list-style: none; padding: 0; margin: 0; background: #fff;
+            border: 1px inset; flex: 1; overflow-y: auto; font-family: 'Tahoma', sans-serif;
+        }
+        ul#file-list li {
+            padding: 2px 4px; cursor: pointer; display: flex; justify-content: space-between;
+            border-bottom: 1px dashed #eee;
+        }
+        ul#file-list li:hover { background: var(--highlight); color: white; }
+
+        /* --- MAIN VIEW --- */
+        .main-col { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         
-        /* File List */
-        #file-tree {
-            list-style: none; padding: 0; margin: 0;
-            background: #fff; flex: 1;
-        }
-        #file-tree li {
-            padding: 3px 6px; border-bottom: 1px solid #eee;
-            display: flex; justify-content: space-between; cursor: pointer;
-        }
-        #file-tree li:hover { background: #ddeeff; color: #000; }
-
-        /* Output View */
-        #viewer {
-            flex: 1; background: #fff; 
-            border: none; width: 100%; height: 100%;
+        #viewer-frame {
+            flex: 2; background: #999; border: 1px inset; 
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+            background-image: repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #f0f0f0 25%, #f0f0f0 75%, #ccc 75%, #ccc);
+            background-position: 0 0, 10px 10px; background-size: 20px 20px;
         }
 
-        /* Console */
-        #term-box {
-            background: var(--term-bg);
-            color: #ccc;
-            font-family: 'Consolas', 'Courier New', monospace;
-            padding: 5px;
-            font-size: 11px;
-            line-height: 1.2;
+        /* --- CONSOLE --- */
+        #console-container {
+            flex: 1; background: #1a1a1a; color: #00ff00;
+            border: 1px inset #000; font-family: 'Courier New', monospace;
+            padding: 5px; overflow: hidden; display: flex; flex-direction: column;
         }
-        #term-history {
-            flex: 1; overflow-y: scroll;
-            margin-bottom: 5px;
-        }
-        .log-ln { display: block; word-break: break-all; }
-        .log-tr { color: #666; } /* Trash/Debug info */
-        .log-warn { color: orange; }
-        .log-sys { color: #0f0; }
-
-        #term-input {
-            width: 100%; background: #000; border: none; border-top: 1px solid #333;
-            color: #fff; padding: 4px; outline: none;
-            font-family: inherit;
+        #term-history { flex: 1; overflow-y: scroll; white-space: pre-wrap; font-size: 11px; }
+        .msg-sys { color: #aaa; }
+        .msg-err { color: #ff5555; }
+        .msg-io  { color: #ffff55; }
+        
+        #term-input-row { display: flex; border-top: 1px solid #444; margin-top: 4px; padding-top: 2px; }
+        #term-input { 
+            flex: 1; background: transparent; color: #fff; border: none; 
+            font-family: inherit; font-size: 12px; outline: none; margin-left: 5px; 
         }
 
     </style>
 </head>
 <body>
 
-<div id="app-container">
+<div id="stage">
     
-    <!-- LEFT SIDE: MANAGMENT -->
-    <aside>
-        <!-- SYSTEM MON -->
+    <!-- LEFT PANEL: RESOURCES -->
+    <div class="sidebar">
+        <!-- SYSTEM STATS -->
         <div class="panel" style="height: auto;">
-            <div class="panel-head">Hardware Resource Mon</div>
-            <div class="panel-body p-2">
-                <div class="stat-row">
-                    <span>RAM MAX:</span> <span id="stat-mem-max">...</span>
-                </div>
-                <div class="stat-row">
-                    <span>CORES:</span> <span id="stat-cpu">...</span>
-                </div>
-                <hr style="border:0; border-bottom:1px solid #ccc; margin: 5px 0;">
-                
-                <div class="stat-row"><span>DISK</span><div class="stat-bar-box"><div id="bar-disk" class="stat-bar-fill"></div></div></div>
-                <div style="text-align:right; font-size:9px; color:#666" id="txt-disk">0/10 GB</div>
-
-                <div class="stat-row" style="margin-top:4px;"><span>CPU LOAD</span><div class="stat-bar-box"><div id="bar-load" class="stat-bar-fill" style="background:crimson; transition: width 0.1s;"></div></div></div>
-                
-                <div style="margin-top:10px; display:flex; gap:2px;">
-                    <button onclick="io.triggerUpload()">UPLOAD DATA</button>
-                    <input type="file" id="sys-upload" style="display:none" multiple onchange="io.receiveUpload(this)">
-                    <button onclick="io.wipe()" style="color:darkred">FMT DISK</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- FILES -->
-        <div class="panel" style="flex:1;">
-            <div class="panel-head">File Index</div>
-            <div class="panel-body scroll-y">
-                <ul id="file-tree"></ul>
-            </div>
-        </div>
-    </aside>
-
-    <!-- RIGHT SIDE: COMPUTING -->
-    <main>
-        <!-- OUTPUT RENDERER (TOP) -->
-        <div class="panel" style="flex: 2;">
-            <div class="panel-head">Visual Output [DirectRender]</div>
+            <div class="panel-head">SYSTEM RESOURCE MON</div>
             <div class="panel-body">
-                <div id="viewer-container" style="width:100%; height:100%; display:grid; place-items: center; background:#e0e0e0;">
-                    <span style="color:#888;">No Stream Active</span>
+                <div class="stat-label"><span>MEM LOAD</span><span id="txt-ram">---</span></div>
+                <div class="meter-container"><div id="bar-ram" class="meter-fill" style="background:#0c0;"></div></div>
+
+                <div class="stat-label"><span>CPU THREADS</span><span id="txt-cpu">---</span></div>
+                <div class="meter-container"><div id="bar-cpu" class="meter-fill" style="background:#cc0;"></div></div>
+
+                <div class="stat-label"><span>DISK USAGE (10GB)</span><span id="txt-disk">calc...</span></div>
+                <div class="meter-container"><div id="bar-disk" class="meter-fill" style="background:#00f;"></div></div>
+                
+                <div class="btn-row">
+                    <button id="btn-fmt" style="color:#a00;">FORMAT DSK</button>
+                    <button id="btn-up">IMPORT DATA</button>
+                    <input type="file" id="inp-file" multiple style="display:none;">
                 </div>
             </div>
         </div>
-
-        <!-- CONSOLE (BOTTOM) -->
+        
+        <!-- FILE BROWSER -->
         <div class="panel" style="flex: 1;">
-            <div class="panel-head">SysLog / Cmd</div>
+            <div class="panel-head">LOCAL INDEX [DRIVE A]</div>
             <div class="panel-body">
-                <div id="term-box" style="display: flex; flex-direction: column; height: 100%;">
-                    <div id="term-history"></div>
-                    <input type="text" id="term-input" autocomplete="off" spellcheck="false" placeholder="ENTER_CMD...">
+                <ul id="file-list">
+                    <!-- JS Populates this -->
+                    <li style="color:#666; font-style:italic; padding:5px;">Initializing DB...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="main-col">
+        <!-- VIEWER -->
+        <div class="panel" style="flex: 2;">
+            <div class="panel-head">VIEWPORT RENDERER</div>
+            <div class="panel-body" style="padding:0; background:#333;">
+                <div id="viewer-frame">
+                    <span style="color:#555; font-weight:bold;">NO SIGNAL</span>
                 </div>
             </div>
         </div>
-    </main>
+
+        <!-- CONSOLE -->
+        <div class="panel" style="flex: 1;">
+            <div class="panel-head">SHELL [ROOT ACCESS]</div>
+            <div class="panel-body" style="background: #111; padding: 2px;">
+                <div id="console-container">
+                    <div id="term-history">Winbox Kernel v2.5...<br>Mounting IndexedDB Volume...<br></div>
+                    <div id="term-input-row">
+                        <span>ADMIN@WINBOX:~$</span>
+                        <input type="text" id="term-input" autocomplete="off" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 
+<!-- APPLICATION LOGIC -->
 <script>
-/**
- * WINBOX ENVIRONMENT ENGINE
- * Stack: IndexedDB + JSZip
+/** 
+ *  WINBOX SINGLE-FILE CLIENT
+ *  (C) Open Source - Local Storage + Zip Logic + SimStats
  */
 
-const CFG = {
-    DB_NAME: "WINBOX_VOL",
-    STORE: "PRIMARY_PARTITION",
-    LIMIT: 10 * 1024 * 1024 * 1024 // 10GB
+/* 1. GLOBALS (Defined strictly to avoid ref errors) */
+window.DB_CFG = {
+    NAME: 'WINBOX_SYSTEM',
+    STORE: 'PARTITION_0',
+    LIMIT: 10737418240 // 10 GB
 };
 
-/* SYSTEM STATS SIMULATION */
-const monitor = {
+window.term = null;
+window.io = null;
+
+/* 2. TERMINAL MODULE */
+const TermSys = {
+    domBox: document.getElementById('term-history'),
+    domInp: document.getElementById('term-input'),
+    
     init: function() {
-        // HW Info
-        document.getElementById('stat-mem-max').innerText = (navigator.deviceMemory ? navigator.deviceMemory + " GB" : "ALLOCATED");
-        document.getElementById('stat-cpu').innerText = navigator.hardwareConcurrency || 4;
-        
-        // Update Load Loop
-        setInterval(() => {
-            const load = Math.floor(Math.random() * 40) + (term.processing ? 40 : 5);
-            document.getElementById('bar-load').style.width = load + "%";
-        }, 800);
-    }
-};
-
-/* TERMINAL CONTROLLER */
-const term = {
-    hist: document.getElementById('term-history'),
-    input: document.getElementById('term-input'),
-    processing: false,
-
-    log: function(msg, type='norm') {
-        const ln = document.createElement('div');
-        ln.className = 'log-ln ' + (type === 'trash' ? 'log-tr' : type === 'warn' ? 'log-warn' : type === 'sys' ? 'log-sys' : '');
-        
-        // Add timestamps to look real
-        const t = new Date().toISOString().split('T')[1].slice(0, -1);
-        ln.textContent = `[${t}] ${msg}`;
-        
-        this.hist.appendChild(ln);
-        this.hist.scrollTop = this.hist.scrollHeight;
+        this.domInp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.execute();
+        });
+        window.addEventListener('click', () => {
+             // Keep focus on terminal unless selecting text
+             if(window.getSelection().toString() === '') this.domInp.focus();
+        });
+        this.log("Terminal Interface Ready.", "sys");
     },
 
-    trash: function(txt) { this.log(txt, 'trash'); },
+    log: function(msg, type="") {
+        const time = new Date().toLocaleTimeString('en-US', {hour12:false});
+        const line = document.createElement('div');
+        
+        if (type === "err") line.className = "msg-err";
+        else if (type === "io") line.className = "msg-io";
+        else line.className = "msg-sys";
+        
+        line.textContent = `[${time}] ${msg}`;
+        this.domBox.appendChild(line);
+        this.domBox.scrollTop = this.domBox.scrollHeight;
+    },
 
-    printBanner: function() {
-        this.log("WINBOX KERNEL BOOT...", 'sys');
-        this.log(`MEM_ALLOC: ${navigator.deviceMemory || 8}GB | SWAP: OK`, 'trash');
-        this.log(`GPU_THREAD: ACTIVE`, 'trash');
-        this.log("Ready for input.", 'sys');
+    execute: function() {
+        const val = this.domInp.value.trim();
+        if (!val) return;
+        
+        this.log(`> ${val}`);
+        this.domInp.value = "";
+        
+        const args = val.split(' ');
+        const cmd = args[0].toLowerCase();
+
+        // Basic Shell Router
+        if (cmd === 'clear' || cmd === 'cls') {
+            this.domBox.innerHTML = "";
+        }
+        else if (cmd === 'help') {
+            this.log("CMDS: ls, rm [file], view [file], format, import, sync", "io");
+        }
+        else if (cmd === 'ls') {
+            io.listDir();
+        }
+        else if (cmd === 'format') {
+            io.formatDisk();
+        }
+        else if (cmd === 'import') {
+            document.getElementById('inp-file').click();
+        }
+        else if (cmd === 'rm') {
+            if(args[1]) io.deleteFile(args[1]);
+            else this.log("Missing filename.");
+        }
+        else if (cmd === 'view') {
+            if(args[1]) io.loadFile(args[1]);
+            else this.log("Missing filename.");
+        }
+        else {
+            this.log("Unknown Command.", "err");
+        }
     }
 };
 
-/* FILESYSTEM (INDEXED DB) */
-const io = {
+/* 3. IO / FILESYSTEM MODULE */
+const IoSys = {
     db: null,
 
     init: async function() {
-        const req = indexedDB.open(CFG.DB_NAME, 3);
-        req.onupgradeneeded = e => {
-            const d = e.target.result;
-            if(!d.objectStoreNames.contains(CFG.STORE)) d.createObjectStore(CFG.STORE, { keyPath: "name" });
-        };
-        req.onsuccess = e => {
-            this.db = e.target.result;
-            this.refreshIndex();
-            monitor.init();
-            term.printBanner();
-        };
-    },
-
-    triggerUpload: () => document.getElementById('sys-upload').click(),
-
-    receiveUpload: function(el) {
-        if(!el.files.length) return;
-        term.processing = true;
-        let count = el.files.length;
-        Array.from(el.files).forEach(f => {
-            term.trash(`BUS_IO: Pipe open for ${f.name} (${f.size}b)`);
-            const reader = new FileReader();
-            reader.onload = e => {
-                this.write(f.name, f.type, e.target.result, f.size);
-                count--;
-                if(count<=0) term.processing = false;
-            };
-            reader.readAsArrayBuffer(f);
-        });
-        el.value = ''; 
-    },
-
-    write: function(name, type, buffer, size) {
-        term.trash(`MEM: Buffer allocation ${name}...`);
+        if (!window.indexedDB) return term.log("CRITICAL: IndexedDB missing!", "err");
         
-        // Check Extension for Unzip Hook
-        if(name.toLowerCase().endsWith(".zip")) {
-            this.handleZipInStream(name, buffer);
-            return; 
-        }
+        const req = indexedDB.open(DB_CFG.NAME, 2);
+        
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(DB_CFG.STORE)) {
+                db.createObjectStore(DB_CFG.STORE, { keyPath: "name" });
+            }
+        };
 
-        const blob = new Blob([buffer], {type: type});
-        const tx = this.db.transaction([CFG.STORE], 'readwrite');
+        req.onsuccess = (e) => {
+            this.db = e.target.result;
+            this.listDir(); // initial scan
+            term.log("Filesystem Mounted (Mode: R/W).", "sys");
+        };
+
+        req.onerror = () => term.log("DB Access Denied/Blocked.", "err");
+        
+        this.attachButtonListeners();
+    },
+
+    attachButtonListeners: function() {
+        document.getElementById('btn-up').addEventListener('click', () => {
+             document.getElementById('inp-file').click();
+        });
+        
+        document.getElementById('btn-fmt').addEventListener('click', () => {
+             this.formatDisk();
+        });
+
+        document.getElementById('inp-file').addEventListener('change', (e) => {
+             this.handleIncomingFiles(e.target.files);
+             e.target.value = ''; // reset
+        });
+    },
+
+    handleIncomingFiles: function(files) {
+        if (files.length === 0) return;
+        Array.from(files).forEach(f => {
+            term.log(`STREAM: Receiving ${f.name} (${this.fmtSize(f.size)})`, "io");
+            
+            // Check for Zip
+            if (f.name.endsWith('.zip')) {
+                // Read into buffer to parse
+                const r = new FileReader();
+                r.onload = (evt) => this.processZip(f.name, evt.target.result);
+                r.readAsArrayBuffer(f);
+            } else {
+                // Direct Save
+                this.saveToDB(f.name, f.type, f.size, f);
+            }
+        });
+    },
+
+    saveToDB: function(name, type, size, blob) {
+        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
+        const store = tx.objectStore(DB_CFG.STORE);
+        
+        const fileRecord = {
+            name: name,
+            type: type || 'application/octet-stream',
+            size: size,
+            data: blob,
+            modified: Date.now()
+        };
+        
+        store.put(fileRecord);
         
         tx.oncomplete = () => {
-            term.log(`WRITE OK: ${name}`, 'sys');
-            this.refreshIndex();
+            // Quiet log to not spam on zips
+            this.listDir();
         };
-        tx.onerror = () => term.log(`ERR_WRITE_FAIL: ${name}`, 'warn');
-
-        tx.objectStore(CFG.STORE).put({
-            name: name, type: type, size: size, data: blob
-        });
+        tx.onerror = () => term.log(`Write Error: ${name}`, "err");
     },
 
-    read: function(name, mode='view') {
-        const tx = this.db.transaction([CFG.STORE], 'readonly');
-        tx.objectStore(CFG.STORE).get(name).onsuccess = e => {
-            if(!e.target.result) return term.log("ERR_404_NOT_FOUND", 'warn');
-            const file = e.target.result;
-            
-            // Logic for ZIP unpacking from existing file
-            if(file.name.endsWith('.zip')) {
-                // Confirm dialog as requested
-                term.log("DETECTED ARCHIVE...", 'warn');
-                const conf = confirm(`Unpack this file?\nArchive: ${file.name}\n\nPress OK to decompress contents to storage.`);
-                if(conf) this.unpackZipBlob(file.data);
-                return;
-            }
-
-            if(mode === 'view') ui.render(file);
-        };
-    },
-
-    delete: function(name) {
-        const tx = this.db.transaction([CFG.STORE], 'readwrite');
-        tx.objectStore(CFG.STORE).delete(name).onsuccess = () => {
-            term.log(`FS_DELETE: ${name}`, 'trash');
-            this.refreshIndex();
-        };
-    },
-
-    wipe: function() {
-        const tx = this.db.transaction([CFG.STORE], 'readwrite');
-        tx.objectStore(CFG.STORE).clear().onsuccess = () => {
-            term.log("FS_FORMAT_COMPLETED", 'warn');
-            this.refreshIndex();
-        };
-    },
-
-    /* ZIP LOGIC */
-    handleZipInStream: function(name, buffer) {
-        term.log(`ARC_HEADER: Zip signature detected on ${name}.`);
-        const c = confirm(`Unpack this file?\nSubtext: Unpack this [.zip] file?\n\nIf Cancel, file will be stored as-is.`);
-        if(c) {
-            this.unpackZipBlob(buffer);
-        } else {
-            // Standard save
-            term.log("ARC_SKIP: Storing raw binary.", 'trash');
-            const blob = new Blob([buffer], {type: "application/zip"});
-            const tx = this.db.transaction([CFG.STORE], 'readwrite');
-            tx.objectStore(CFG.STORE).put({name:name, type:"application/zip", size:buffer.byteLength, data:blob});
-            tx.oncomplete = () => this.refreshIndex();
+    // ZIP LOGIC using JSZip
+    processZip: function(filename, buffer) {
+        term.log(`PKZIP: Detected archive signature for ${filename}`, "sys");
+        
+        if (!confirm(`Unpack archive "${filename}"? \nClick OK to extract contents.\nClick Cancel to save as a regular zip file.`)) {
+             // User chose to keep as ZIP
+             this.saveToDB(filename, 'application/zip', buffer.byteLength, new Blob([buffer]));
+             return;
         }
-    },
 
-    unpackZipBlob: function(blobOrBuffer) {
-        term.processing = true;
-        term.log("INIT_INFLATE_ALGO...", 'sys');
+        term.log("PKZIP: Deflating streams...", "io");
         
-        new JSZip().loadAsync(blobOrBuffer).then(zip => {
-            const promises = [];
-            
-            zip.forEach((relativePath, zipEntry) => {
-                if(zipEntry.dir) return; // Skip directories, flatten structure or create handlers? Flatten for now.
-                term.trash(`INFLATE: ${zipEntry.name} | Ratio: ${zipEntry._data ? 'compressed' : 'unknown'}`);
-                
-                // Unzip into memory
-                const p = zipEntry.async("arraybuffer").then(content => {
-                     // Save unpacked file back to FS
-                     const mime = this.guessMime(zipEntry.name);
-                     term.trash(`CRC_CHK: ${zipEntry.name} -> OK.`);
+        if (!window.JSZip) return term.log("ERR: JSZip Library not loaded.", "err");
+
+        new JSZip().loadAsync(buffer).then(zip => {
+            let pList = [];
+            zip.forEach((path, entry) => {
+                if (entry.dir) return; // Skip folder items
+                const p = entry.async('blob').then(blob => {
+                     // Guess MIME
+                     let mime = 'text/plain';
+                     if (entry.name.match(/\.(jpg|png|gif|jpeg)$/i)) mime = 'image/png';
                      
-                     // Direct save call to avoid circular confirm
-                     const fBlob = new Blob([content], {type: mime});
-                     const tx = this.db.transaction([CFG.STORE], 'readwrite');
-                     tx.objectStore(CFG.STORE).put({
-                         name: zipEntry.name, 
-                         type: mime, 
-                         size: content.byteLength, 
-                         data: fBlob 
-                     });
+                     term.log(`EXTRACT: ${entry.name}`, "sys");
+                     this.saveToDB(entry.name, mime, blob.size, blob);
                 });
-                promises.push(p);
+                pList.push(p);
             });
-
-            Promise.all(promises).then(() => {
-                term.processing = false;
-                term.log("ARC_UNPACK_SUCCESS", 'sys');
-                this.refreshIndex();
-            });
-        }).catch(err => {
-            term.processing = false;
-            term.log(`ERR_ZIP_CORRUPT: ${err}`, 'warn');
-        });
+            Promise.all(pList).then(() => term.log("Batch extraction complete.", "sys"));
+        }).catch(err => term.log(`Corrupt Archive: ${err}`, "err"));
     },
 
-    refreshIndex: function() {
-        const list = document.getElementById('file-tree');
-        list.innerHTML = '';
-        let total = 0;
+    deleteFile: function(name) {
+        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
+        tx.objectStore(DB_CFG.STORE).delete(name);
+        tx.oncomplete = () => {
+            term.log(`Deleted ${name}`);
+            this.listDir();
+        };
+    },
+
+    formatDisk: function() {
+        if (!confirm("CRITICAL WARNING: Wipe all data?")) return;
+        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
+        tx.objectStore(DB_CFG.STORE).clear();
+        tx.oncomplete = () => {
+            term.log("Filesystem formatted (0% Used).", "sys");
+            this.listDir();
+        };
+    },
+
+    loadFile: function(name) {
+        const tx = this.db.transaction([DB_CFG.STORE], "readonly");
+        const req = tx.objectStore(DB_CFG.STORE).get(name);
+        req.onsuccess = (e) => {
+            const res = e.target.result;
+            if (res) Viewer.display(res);
+            else term.log(`File ${name} not found.`, "err");
+        };
+    },
+
+    listDir: function() {
+        const ul = document.getElementById('file-list');
+        ul.innerHTML = "";
         
-        const tx = this.db.transaction([CFG.STORE], 'readonly');
-        tx.objectStore(CFG.STORE).openCursor().onsuccess = e => {
-            const cur = e.target.result;
-            if(cur) {
-                total += cur.value.size;
+        const tx = this.db.transaction([DB_CFG.STORE], "readonly");
+        const store = tx.objectStore(DB_CFG.STORE);
+        let totalBytes = 0;
+        
+        store.openCursor().onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                const f = cursor.value;
+                totalBytes += f.size;
+                
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${cur.value.name}</span><span style="color:#666">${this.sz(cur.value.size)}</span>`;
-                li.onclick = () => io.read(cur.value.name);
-                list.appendChild(li);
-                cur.continue();
+                li.innerHTML = `<span>${f.name}</span> <span style="font-size:10px; color:#666">${this.fmtSize(f.size)}</span>`;
+                li.onclick = () => this.loadFile(f.name);
+                
+                ul.appendChild(li);
+                cursor.continue();
             } else {
-                this.updateQuota(total);
+                // Done
+                this.updateDiskMeter(totalBytes);
             }
         };
     },
 
-    updateQuota: function(used) {
-        const pct = (used / CFG.LIMIT) * 100;
+    updateDiskMeter: function(used) {
+        const pct = (used / DB_CFG.LIMIT) * 100;
         document.getElementById('bar-disk').style.width = pct + "%";
-        document.getElementById('txt-disk').innerText = `${this.sz(used)} / 10 GB`;
-        if(pct > 90) term.log("WARN: DISK_FULL_NEAR", 'warn');
+        document.getElementById('txt-disk').innerText = this.fmtSize(used) + " / 10 GB";
+        
+        if(pct > 80) term.log("Warning: Disk capacity critical.", "err");
     },
 
-    guessMime: function(name) {
-        if(name.match(/\.(jpg|jpeg|png|gif)$/i)) return 'image/png';
-        if(name.match(/\.(txt|md|js|css|html|log)$/i)) return 'text/plain';
-        return 'application/octet-stream';
-    },
-
-    sz: function(b) {
-        const u = ['B','KB','MB','GB'];
-        let i = 0;
-        while(b >= 1024 && i < 3) { b /= 1024; i++; }
-        return b.toFixed(1) + u[i];
+    fmtSize: function(bytes) {
+        if(bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 };
 
-/* VIEW / RENDER LOGIC */
-const ui = {
-    box: document.getElementById('viewer-container'),
+/* 4. VISUAL RENDERER */
+const Viewer = {
+    box: document.getElementById('viewer-frame'),
     
-    render: function(f) {
-        term.log(`DISPLAY_DRVR: Rendering ${f.name} [${f.type}]...`, 'trash');
-        this.box.innerHTML = ''; // Clear
+    display: function(fileRecord) {
+        this.box.innerHTML = "";
+        this.box.style.background = "#fff";
+        this.box.style.backgroundImage = "none";
+        
+        term.log(`RENDER: Decoding ${fileRecord.name}...`, "sys");
+        
+        const type = fileRecord.type;
+        const blob = fileRecord.data;
 
-        // 1. Images
-        if(f.type.startsWith('image')) {
+        // Image
+        if (type.startsWith('image/')) {
             const img = document.createElement('img');
-            img.src = URL.createObjectURL(f.data);
-            img.style.maxWidth = "100%";
-            img.style.maxHeight = "100%";
+            img.src = URL.createObjectURL(blob);
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
             this.box.appendChild(img);
         }
-        // 2. Text-based
-        else if(f.type.startsWith('text') || f.name.match(/\.(t
+        // HTML / Code / Text
+        else if (type.includes('text') || fileRecord.name.match(/\.(html|css|js|json|md)$/i)) {
+             const r = new FileReader();
+             r.onload = (e) => {
+                 // Check if it's HTML, to render safer via srcdoc if possible
+                 if(fileRecord.name.endsWith('.html')) {
+                    const frame = document.createElement('iframe');
+                    frame.style.width = '100%'; frame.style.height = '100%'; frame.style.border = '0';
+                    frame.srcdoc = e.target.result;
+                    this.box.appendChild(frame);
+                 } else {
+                    const pre = document.createElement('pre');
+                    pre.style.margin = 0; pre.style.padding = '10px'; pre.style.width='100%'; 
+                    pre.style.height='100%'; pre.style.overflow='auto';
+                    pre.textContent = e.target.result;
+                    this.box.appendChild(pre);
+                 }
+             };
+             r.readAsText(blob);
+        }
+        else {
+            this.box.innerHTML = `<div style="text-align:center; padding:20px;">
+                <b>Binary Data</b><br>${IoSys.fmtSize(fileRecord.size)}<br><small>${fileRecord.type}</small>
+            </div>`;
+        }
+    }
+};
+
+/* 5. STATS SIMULATION */
+function initStats() {
+    // RAM
+    const ram = (navigator.deviceMemory || 8); 
+    document.getElementById('txt-ram').innerText = ram + " GB Alloc";
+    document.getElementById('bar-ram').style.width = "40%";
+
+    // CPU
+    const cores = (navigator.hardwareConcurrency || 4);
+    document.getElementById('txt-cpu').innerText = cores + " Cores";
+    
+    setInterval(() => {
+        // Random flutter for effect
+        const base = Math.random() * 20;
+        const spike = Math.random() > 0.9 ? 30 : 0;
+        const total = 20 + base + spike;
+        document.getElementById('bar-cpu').style.width = total + "%";
+    }, 1500);
+}
+
+/* BOOT SEQUENCE */
+window.onload = function() {
+    // Publish to window for debugging if needed
+    window.term = TermSys;
+    window.io = IoSys;
+
+    TermSys.init();
+    IoSys.init();
+    initStats();
+};
+
+</script>
+</body>
+</html>
