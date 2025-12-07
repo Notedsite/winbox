@@ -4,511 +4,431 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox MX [Stable]</title>
-    <!-- ZIP Library -->
+    <title>Winbox MX [Workbench]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
+
     <style>
-        /* --- MACROMEDIA FLASH MX THEME (PRESERVED) --- */
+        /* --- THEME: MACROMEDIA INDUSTRIAL --- */
         :root {
-            --bg-workspace: #999999;
-            --panel-bg: #f4f4f4;
-            --panel-header-grad-1: #e9e9e9;
-            --panel-header-grad-2: #cfcfcf;
-            --border-dark: #666666;
-            --border-focus: #333333;
-            --selection-blue: #316ac5;
-            --text-small: 10px;
+            --bg-body: #999;
+            --panel-face: #f4f4f4;
+            --border: #666;
+            --header-light: #e0e0e0;
+            --header-dark: #cccccc;
+            --accent: #000080; /* Navy Blue */
+            --font-ui: 'Verdana', sans-serif;
+            --font-mono: 'Courier New', monospace;
         }
 
+        * { box-sizing: border-box; }
+        
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
-            background: var(--bg-workspace);
-            font-family: 'Verdana', sans-serif;
-            font-size: 11px;
-            color: #000;
-            overflow: hidden;
-            display: flex; flex-direction: column;
+            background: var(--bg-body); font-family: var(--font-ui); font-size: 11px;
+            display: flex; flex-direction: column; overflow: hidden;
             user-select: none;
         }
 
-        /* --- UI LAYOUT --- */
+        /* --- HEADER --- */
         #toolbar {
-            height: 24px; background: #e0e0e0; border-bottom: 1px solid #666;
-            display: flex; align-items: center; padding: 0 5px; gap: 4px;
+            height: 28px; background: #d0d0d0; border-bottom: 1px solid #777;
+            display: flex; align-items: center; padding: 0 8px; gap: 8px;
+            box-shadow: inset 0 1px 0 #fff; z-index: 5;
         }
 
-        #workspace {
-            flex: 1; display: flex; padding: 3px; gap: 3px;
+        .mx-btn {
+            background: linear-gradient(#fff, #ddd); border: 1px solid #777;
+            padding: 3px 10px; font-size: 10px; color: #222; cursor: pointer;
         }
+        .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; }
+        
+        #clock { margin-left: auto; color: #555; font-size: 10px; }
 
-        aside { width: 220px; display: flex; flex-direction: column; gap: 3px; }
-        section { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+        /* --- 3-COLUMN WORKSPACE --- */
+        #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
 
-        /* --- PANEL COMPONENT --- */
-        .mx-panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-dark);
-            display: flex; flex-direction: column;
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        /* Generic Panel */
+        .panel {
+            background: var(--panel-face); border: 1px solid var(--border);
+            display: flex; flex-direction: column; 
+            box-shadow: 2px 2px 2px rgba(0,0,0,0.1);
         }
         
-        .mx-header {
-            background: linear-gradient(to bottom, var(--panel-header-grad-1), var(--panel-header-grad-2));
-            height: 18px; border-bottom: 1px solid #aaa;
-            display: flex; align-items: center; padding: 0 4px;
-            font-size: var(--text-small); font-weight: bold; color: #444;
-            cursor: default;
+        .p-head {
+            height: 20px; 
+            background: linear-gradient(to bottom, var(--header-light), var(--header-dark));
+            border-bottom: 1px solid #999;
+            display: flex; align-items: center; padding: 0 5px;
+            font-weight: bold; color: #444; font-size: 10px; text-transform: uppercase;
         }
-        .mx-header::before {
-            content: "::::";
-            color: #999; margin-right: 5px; letter-spacing: 1px;
+        .p-head::before { content: "::::"; color: #888; margin-right: 6px; letter-spacing: 1px; }
+
+        .p-body { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+
+        /* LEFT DOCK: ASSETS & LOGS */
+        .col-left { width: 220px; display: flex; flex-direction: column; gap: 4px; }
+
+        /* CENTER DOCK: STAGE */
+        .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        
+        /* RIGHT DOCK: INSERT MENU */
+        .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
+
+        /* --- COMPONENT STYLES --- */
+
+        /* Module Chips (Right Panel) */
+        .module-item {
+            display: flex; gap: 8px; align-items: center; padding: 8px;
+            border-bottom: 1px solid #ccc; cursor: pointer; background: #fff;
+            transition: all 0.2s;
+        }
+        .module-item:hover { background: #eeffff; }
+        
+        /* Module Icon */
+        .chip-icon { 
+            width: 24px; height: 24px; background: #333; 
+            border: 1px solid #000; display: grid; place-items: center; 
+        }
+        .chip-inner { width: 8px; height: 8px; background: gold; border-radius: 50%; }
+
+        .module-meta { flex: 1; display: flex; flex-direction: column; }
+        .m-title { font-weight: bold; font-size: 10px; }
+        .m-sub { font-size: 9px; color: #777; }
+        
+        /* Status Badge */
+        .m-badge {
+            font-size: 9px; padding: 2px 4px; background: var(--accent); color: white; border-radius: 2px;
         }
         
-        .mx-body {
-            flex: 1; overflow: hidden; position: relative;
-            padding: 2px;
+        /* Disabled / Installed State */
+        .module-item.is-installed {
+            background: #e0e0e0; cursor: default;
+        }
+        .module-item.is-installed .chip-inner { background: #666; }
+        .module-item.is-installed .m-title { color: #888; text-decoration: line-through; }
+        .module-item.is-installed .m-badge { background: #999; }
+
+        /* File List */
+        ul#file-index {
+            list-style: none; padding: 0; margin: 0; flex: 1;
+            background: #fff; border: 1px solid #aaa; overflow-y: scroll;
+        }
+        ul#file-index li {
+            padding: 2px 4px; border-bottom: 1px dotted #ccc; display: flex; justify-content: space-between;
+        }
+        ul#file-index li:hover { background: #ddeeff; cursor: pointer; }
+
+        /* Viewport */
+        #stage-wrap {
+            flex: 1; border: 1px inset #fff; background: #888; padding: 20px;
+            background-image: repeating-linear-gradient(45deg, #999 25%, transparent 25%, transparent 75%, #999 75%, #999);
+            background-size: 12px 12px;
+        }
+        #visual-out {
+            width: 100%; height: 100%; background: #fff; box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
 
-        /* --- BUTTONS & CONTROLS --- */
-        button {
-            border: 1px solid #888; background: linear-gradient(#fff, #e4e4e4);
-            font-family: Verdana; font-size: 9px; padding: 2px 6px;
-            cursor: pointer; outline: none; border-radius: 1px;
+        /* Console */
+        #term-view {
+            flex: 1; background: #fdfdfd; border: 1px solid #aaa; font-family: var(--font-mono); 
+            font-size: 10px; padding: 4px; overflow-y: auto; color: #333; margin: 2px;
         }
-        button:active { background: #ddd; box-shadow: inset 1px 1px 1px #bbb; }
-        
-        input[type="text"] {
-            border: 1px solid #777; font-family: 'Verdana'; font-size: 11px; padding: 2px;
+        #term-in {
+            border: 1px solid #aaa; background: #eee; padding: 2px; outline: none; margin: 0 2px 2px 2px; font-family: inherit;
         }
 
-        /* --- FILE LIST --- */
-        ul#file-browser {
-            list-style: none; padding: 0; margin: 0; 
-            background: #fff; border: 1px solid #888; flex: 1;
-            overflow-y: scroll; font-size: 10px;
+        /* FAKE OS (When running BIOS) */
+        .os-boot { background: #000; color: #ddd; width:100%; height:100%; padding:20px; font-family: monospace; }
+        .os-gui { background: #008080; width:100%; height:100%; position: relative; }
+        .os-win { 
+            position:absolute; top:20px; left:20px; width:220px; 
+            background: #c0c0c0; border:2px outset #fff; box-shadow: 2px 2px 0 #000; 
         }
-        ul#file-browser li {
-            padding: 2px 5px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; justify-content: space-between;
-        }
-        ul#file-browser li:hover { background: #e3e3e3; }
+        .os-head { background: #000080; color: #fff; padding: 2px 4px; font-weight: bold; display: flex; justify-content: space-between; }
+        .os-body { padding: 10px; color: black; }
 
-        /* --- STAGE / VIEWER --- */
-        #stage {
-            width: 100%; height: 100%;
-            background: #aaa; 
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid #666; overflow: hidden;
-            background-image: repeating-linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb), repeating-linear-gradient(45deg, #bbb 25%, #999 25%, #999 75%, #bbb 75%, #bbb);
-            background-position: 0 0, 10px 10px; background-size: 20px 20px;
-        }
-
-        /* Editor */
-        .editor-wrap {
-            width: 100%; height: 100%; display: flex; flex-direction: column; background: #fff;
-        }
-        textarea.code-view {
-            flex: 1; resize: none; border: none; font-family: 'Courier New', monospace; font-size: 12px;
-            padding: 5px; outline: none; background: #fff; color: #000;
-        }
-        .editor-controls {
-            background: #eee; border-top: 1px solid #ccc; padding: 2px; text-align: right;
-        }
-
-        /* --- TERMINAL --- */
-        #terminal-panel { height: 160px; }
-        #term-history {
-            background: #fff; color: #333; font-family: 'Courier New', monospace; font-size: 11px;
-            flex: 1; border: 1px solid #888; overflow-y: scroll; padding: 3px;
-        }
-        .log-ln { padding-left: 2px; border-bottom: 1px dotted #eee; }
-        .log-sys { color: #666; font-style: italic; }
-        .log-err { color: #cc0000; }
-        .log-in  { font-weight: bold; color: #000; margin-top: 4px; display: block; }
-        
-        #cmd-row {
-            margin-top: 3px; display: flex; gap: 4px; align-items: center;
-            font-size: 10px; color: #444;
-        }
-        #cmd-input { flex: 1; }
-
-        /* --- METERS --- */
-        .meter-box { border: 1px solid #888; height: 10px; background: #fff; width: 100%; margin-bottom: 4px; position:relative; }
-        .meter-fill { height: 100%; background: linear-gradient(90deg, #99ccff, #3366cc); width: 0%; }
-        .meter-lbl { font-size: 9px; color: #666; margin-bottom: 1px; display: flex; justify-content: space-between; }
+        .hidden { display: none !important; }
 
     </style>
 </head>
 <body>
 
-<!-- TOOLBAR (Corrected: No Inline JS) -->
+<!-- TOOLBAR -->
 <div id="toolbar">
-    <div style="font-weight:bold; color:#444; margin-right:10px;">WINBOX MX</div>
-    <div style="border-left: 1px solid #999; height: 14px; margin: 0 5px;"></div>
+    <div style="font-weight:bold; color:#444; letter-spacing:1px; margin-right: 10px;">WINBOX.MX7</div>
+    <div style="border-left:1px solid #888; height: 16px;"></div>
     
-    <button id="btn_imp">Import</button>
-    <button id="btn_new">New File</button>
-    <button id="btn_wipe">Wipe</button>
-    
-    <input type="file" id="sys_upload_shim" multiple style="display:none">
+    <button class="mx-btn" onclick="UI.upload()">Import Files...</button>
+    <button class="mx-btn" onclick="FS.format()" style="color:#a00">Format</button>
+    <div id="clock">Running...</div>
 </div>
 
-<!-- WORKSPACE -->
+<input type="file" id="sys-shim" class="hidden" multiple>
+
+<!-- 3 COLUMN WORKSPACE -->
 <div id="workspace">
 
-    <!-- LEFT SIDEBAR -->
-    <aside>
-        <div class="mx-panel" style="height: auto;">
-            <div class="mx-header">Resource Monitor</div>
-            <div class="mx-body" style="padding: 6px;">
-                <div class="meter-lbl"><span>RAM Allocation</span><span id="lbl_ram">-</span></div>
-                <div class="meter-box"><div id="bar_ram" class="meter-fill"></div></div>
-
-                <div class="meter-lbl"><span>Virtual CPU</span><span id="lbl_cpu">-</span></div>
-                <div class="meter-box"><div id="bar_cpu" class="meter-fill"></div></div>
-
-                <div class="meter-lbl"><span>Drive Space</span><span id="lbl_dsk">Calc..</span></div>
-                <div class="meter-box"><div id="bar_dsk" class="meter-fill"></div></div>
+    <!-- 1. LEFT: ASSETS -->
+    <div class="col-left">
+        <div class="panel" style="flex:1;">
+            <div class="p-head">Local Drive (A:)</div>
+            <div class="p-body" style="padding: 2px;">
+                <ul id="file-index"></ul>
             </div>
         </div>
 
-        <div class="mx-panel" style="flex: 1;">
-            <div class="mx-header">Assets (Local Drive)</div>
-            <div class="mx-body" style="padding: 0;">
-                <ul id="file-browser"></ul>
+        <div class="panel" style="height: 150px;">
+            <div class="p-head">Log / Cmd</div>
+            <div class="p-body">
+                <div id="term-view">
+                    <div style="color:gray;">Kernel Loaded...</div>
+                </div>
+                <input type="text" id="term-in" placeholder="Cmd..." autocomplete="off">
             </div>
         </div>
-    </aside>
+    </div>
 
-    <!-- RIGHT SECTION -->
-    <section>
-        <div class="mx-panel" style="flex: 1;">
-            <div class="mx-header"><span id="stage-title">Stage: [Empty]</span></div>
-            <div class="mx-body" style="background:#808080; padding:10px; display:flex;">
-                <div id="stage">
-                    <div style="text-align:center; color:#555; font-size:10px;">
-                        No document open.<br>Use console 'run' or 'view' commands.
+    <!-- 2. CENTER: VIEWPORT -->
+    <div class="col-center">
+        <div class="panel" style="flex:1;">
+            <div class="p-head"><span id="lbl-view">Viewport [Idle]</span></div>
+            <div class="p-body">
+                <div id="stage-wrap">
+                    <div id="visual-out">
+                        <div style="text-align:center; color:#999;">
+                            NO SIGNAL<br><small>Insert and Run a Module</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="mx-panel" id="terminal-panel">
-            <div class="mx-header">Output / Console</div>
-            <div class="mx-body" style="display: flex; flex-direction: column;">
-                <div id="term-history"></div>
-                <div id="cmd-row">
-                    <span>&gt;</span>
-                    <input type="text" id="cmd-input" spellcheck="false" autocomplete="off" placeholder="Init...">
+    <!-- 3. RIGHT: INSERT DOCK (New!) -->
+    <div class="col-right">
+        <div class="panel" style="flex: 1;">
+            <div class="p-head">Module Bay</div>
+            <div class="p-body" style="background:#ddd;">
+                
+                <!-- CHIP: BIOS -->
+                <div id="mod-bios" class="module-item" onclick="App.installBIOS()">
+                    <div class="chip-icon"><div class="chip-inner"></div></div>
+                    <div class="module-meta">
+                        <span class="m-title">Standard BIOS</span>
+                        <span class="m-sub">v4.51 (ISO)</span>
+                    </div>
+                    <div class="m-badge" id="badge-bios">INSERT</div>
                 </div>
+
+                <!-- Spacer / Fake modules for looks -->
+                <div class="module-item is-installed" style="cursor: default;">
+                    <div class="chip-icon"><div class="chip-inner" style="background:#555"></div></div>
+                    <div class="module-meta">
+                        <span class="m-title">VGA Controller</span>
+                        <span class="m-sub">Integrated</span>
+                    </div>
+                    <div class="m-badge" style="background:#888">HARDWARE</div>
+                </div>
+
             </div>
         </div>
-    </section>
+    </div>
+
 </div>
 
-<!-- LOGIC -->
+<!-- JAVASCRIPT KERNEL -->
 <script>
-/**
- * WINBOX MX | REVISED ARCHITECTURE
- * Fixed Scope Issues & Inline Triggers
- */
 
-// 1. CONFIGURATION
-const CFG = {
-    DB_NAME: "WINBOX_MX_VOL",
-    STORE_NAME: "DATA_LAYER",
-    QUOTA: 10 * 1024 * 1024 * 1024 // 10 GB
+/* CONFIG */
+const C = {
+    DB: "WINBOX_PRO_V7",
+    VOL: "MAIN_DISK",
+    BIOS_NAME: "BOOT_SECTOR.ISO"
 };
 
-// 2. DOM CACHE (Populated on Load)
-const UI = {
-    history: null, input: null,
-    stage: null, title: null,
-    files: null, uploader: null,
-    stats: { ram: null, cpu: null, disk: null }
-};
+/* NAMESPACES (Prevents ref errors) */
+const App = {};
+const FS = {};
+const UI = {};
+const Term = {};
 
-// 3. FILESYSTEM (fs)
-const fs = {
-    db: null,
-
-    init: function() {
-        if(!window.indexedDB) return term.print("ERR: IndexedDB not supported.", "err");
-        const req = indexedDB.open(CFG.DB_NAME, 4);
-        
+/* FILESYSTEM (IndexedDB) */
+FS.db = null;
+FS.init = function() {
+    return new Promise(resolve => {
+        const req = indexedDB.open(C.DB, 2);
         req.onupgradeneeded = e => {
             const d = e.target.result;
-            if(!d.objectStoreNames.contains(CFG.STORE_NAME)) {
-                d.createObjectStore(CFG.STORE_NAME, { keyPath: "name" });
-            }
+            if(!d.objectStoreNames.contains(C.VOL)) d.createObjectStore(C.VOL, {keyPath:"name"});
         };
         req.onsuccess = e => {
-            this.db = e.target.result;
-            term.print("Filesystem Mounted.");
-            this.refresh();
+            FS.db = e.target.result;
+            FS.scan();
+            resolve();
         };
-        req.onerror = () => term.print("FS Error: Access Denied.", "err");
-    },
-
-    save: function(name, blob, silent=false) {
-        const tx = this.db.transaction([CFG.STORE_NAME], "readwrite");
-        const meta = {
-            name: name,
-            data: blob,
-            size: blob.size,
-            type: blob.type || "application/octet-stream",
-            date: new Date()
-        };
-        tx.objectStore(CFG.STORE_NAME).put(meta);
-        tx.oncomplete = () => {
-            if(!silent) term.print(`Saved: ${name} (${this.fmt(blob.size)})`);
-            this.refresh();
-        };
-    },
-
-    delete: function(name) {
-        const tx = this.db.transaction([CFG.STORE_NAME], "readwrite");
-        tx.objectStore(CFG.STORE_NAME).delete(name);
-        tx.oncomplete = () => {
-            term.print(`Deleted: ${name}`);
-            this.refresh();
-        };
-    },
-
-    load: function(name, mode) {
-        const tx = this.db.transaction([CFG.STORE_NAME], "readonly");
-        tx.objectStore(CFG.STORE_NAME).get(name).onsuccess = e => {
-            const f = e.target.result;
-            if(f) render.file(f, mode);
-            else term.print("Error: File not found.", "err");
-        };
-    },
-
-    format: function() {
-        if(!confirm("Wipe all data on virtual drive?")) return;
-        const tx = this.db.transaction([CFG.STORE_NAME], "readwrite");
-        tx.objectStore(CFG.STORE_NAME).clear();
-        tx.oncomplete = () => {
-            term.print("Drive Formatted.");
-            this.refresh();
-        };
-    },
-
-    refresh: function() {
-        UI.files.innerHTML = "";
-        const tx = this.db.transaction([CFG.STORE_NAME], "readonly");
-        let total = 0;
-        
-        tx.objectStore(CFG.STORE_NAME).openCursor().onsuccess = e => {
-            const cur = e.target.result;
-            if(cur) {
-                total += cur.value.size;
-                const li = document.createElement("li");
-                li.innerHTML = `<span>${cur.value.name}</span> <span style='color:#888'>${this.fmt(cur.value.size)}</span>`;
-                li.onclick = () => this.load(cur.value.name, 'view');
-                UI.files.appendChild(li);
-                cur.continue();
-            } else {
-                sys.updateMeters(total);
-            }
-        };
-    },
-
-    // UPLOAD LOGIC
-    handleFiles: function(list) {
-        if(!list.length) return;
-        Array.from(list).forEach(f => {
-            if(f.name.toLowerCase().endsWith(".zip") && window.JSZip) {
-                if(confirm(`Unzip archive: ${f.name}?`)) {
-                    this.unzip(f);
-                    return;
-                }
-            }
-            this.save(f.name, f);
-        });
-        UI.uploader.value = "";
-    },
-
-    unzip: function(blob) {
-        term.print("Unzipping archive...");
-        new JSZip().loadAsync(blob).then(zip => {
-            zip.forEach((p, ent) => {
-                if(!ent.dir) ent.async("blob").then(b => this.save(ent.name, b));
-            });
-            term.print("Batch unzip complete.");
-        });
-    },
-
-    fmt: b => {
-        if(b===0) return '0B';
-        const i = Math.floor(Math.log(b)/Math.log(1024));
-        return parseFloat((b/Math.pow(1024,i)).toFixed(1)) + ['B','KB','MB','GB'][i];
-    }
+    });
 };
 
-// 4. RENDERER (render)
-const render = {
-    file: function(f, mode) {
-        UI.stage.innerHTML = "";
-        UI.stage.style.background = "#fff";
-        UI.title.innerText = `Stage: ${f.name} [${mode.toUpperCase()}]`;
-        term.print(`Opening ${f.name} in ${mode} mode...`);
-
-        // EDITOR
-        if(mode === 'edit') {
-            if(f.type.startsWith("text") || f.name.match(/\.(js|json|css|html|md|txt)$/)) {
-                const r = new FileReader();
-                r.onload = e => {
-                    const wrap = document.createElement("div"); wrap.className = "editor-wrap";
-                    const ta = document.createElement("textarea"); ta.className = "code-view"; ta.value = e.target.result;
-                    
-                    const bar = document.createElement("div"); bar.className = "editor-controls";
-                    const btn = document.createElement("button"); btn.innerText = "Commit Changes";
-                    btn.onclick = () => fs.save(f.name, new Blob([ta.value], {type: f.type}));
-                    
-                    bar.appendChild(btn); wrap.append(ta, bar);
-                    UI.stage.appendChild(wrap);
-                };
-                r.readAsText(f.data);
-            } else term.print("Binary file - Cannot Edit", "err");
-            return;
-        }
-        
-        // DOWNLOAD
-        if(mode === 'dl') {
-            const url = URL.createObjectURL(f.data);
-            const a = document.createElement("a"); a.href=url; a.download=f.name;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            term.print("Downloading to host...");
-            return;
-        }
-
-        // VISUAL (View/Run)
-        const mime = f.type;
-        if(mime.startsWith("image/")) {
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(f.data);
-            img.style.cssText = "max-width:100%; max-height:100%;";
-            UI.stage.appendChild(img);
-        } else if(f.name.endsWith(".html") && mode === 'run') {
-            const r = new FileReader();
-            r.onload = e => {
-                const ifr = document.createElement("iframe");
-                ifr.style.cssText = "width:100%; height:100%; border:0;";
-                ifr.srcdoc = e.target.result;
-                ifr.sandbox = "allow-scripts"; 
-                UI.stage.appendChild(ifr);
-            };
-            r.readAsText(f.data);
-        } else {
-            // Text Fallback
-            const r = new FileReader();
-            r.onload = e => {
-                const pre = document.createElement("pre");
-                pre.style.padding = "10px";
-                pre.innerText = e.target.result.slice(0, 5000) + (e.target.result.length>5000?"\n...[Truncated]":"");
-                UI.stage.appendChild(pre);
-            };
-            r.readAsText(f.data);
-        }
-    }
+FS.write = function(name, blob, type) {
+    const tx = FS.db.transaction([C.VOL], "readwrite");
+    tx.objectStore(C.VOL).put({ name:name, data:blob, size:blob.size, type:type||blob.type });
+    tx.oncomplete = () => { FS.scan(); };
 };
 
-// 5. TERMINAL & LOGIC
-const term = {
-    print: function(txt, type="sys") {
-        if(!UI.history) return;
-        const div = document.createElement("div");
-        div.className = "log-ln " + (type === "err" ? "log-err" : "log-sys");
-        div.textContent = txt;
-        UI.history.appendChild(div);
-        UI.history.scrollTop = UI.history.scrollHeight;
-    },
-
-    exec: function(manualCmd) {
-        const val = manualCmd || UI.input.value.trim();
-        if(!val) return;
-        if(!manualCmd) UI.input.value = "";
-        
-        // Echo input
-        const echo = document.createElement("div"); 
-        echo.className = "log-in"; 
-        echo.textContent = "> " + val;
-        UI.history.appendChild(echo);
-        UI.history.scrollTop = UI.history.scrollHeight;
-
-        // Parse
-        const [cmd, ...args] = val.split(" ");
-        const param = args.join(" ");
-
-        switch(cmd.toLowerCase()) {
-            case "help":
-                term.print("CMD: ls, create, edit, run, download, rm, wipe, upload");
-                break;
-            case "ls": fs.refresh(); break;
-            case "create": 
-                param ? fs.save(param, new Blob(["// New File"], {type:"text/plain"})) 
-                      : term.print("Usage: create [filename]", "err");
-                break;
-            case "edit": param ? fs.load(param, 'edit') : term.print("Usage: edit [file]", "err"); break;
-            case "view": param ? fs.load(param, 'view') : term.print("Usage: view [file]", "err"); break;
-            case "run": param ? fs.load(param, 'run') : term.print("Usage: run [file]", "err"); break;
-            case "dl":
-            case "download": param ? fs.load(param, 'dl') : term.print("Usage: dl [file]", "err"); break;
-            case "rm": param ? fs.delete(param) : term.print("Usage: rm [file]", "err"); break;
-            case "wipe": fs.format(); break;
-            case "upload": UI.uploader.click(); break;
-            default: term.print("Unknown command.", "err");
-        }
-    }
+FS.read = function(name, cb) {
+    const tx = FS.db.transaction([C.VOL], "readonly");
+    const r = tx.objectStore(C.VOL).get(name);
+    r.onsuccess = () => { if(r.result) cb(r.result); else Term.err("File not found"); };
 };
 
-// 6. SYSTEM UTILS (sys)
-const sys = {
-    bind: function() {
-        // Elements
-        UI.history = document.getElementById("term-history");
-        UI.input   = document.getElementById("cmd-input");
-        UI.stage   = document.getElementById("stage");
-        UI.title   = document.getElementById("stage-title");
-        UI.files   = document.getElementById("file-browser");
-        UI.uploader= document.getElementById("sys_upload_shim");
-        
-        // Listeners (NO MORE INLINE JS)
-        document.getElementById("btn_imp").onclick  = () => UI.uploader.click();
-        document.getElementById("btn_new").onclick  = () => term.exec("create untitled.txt");
-        document.getElementById("btn_wipe").onclick = () => term.exec("wipe");
-        
-        UI.input.addEventListener("keydown", e => { if(e.key === "Enter") term.exec(); });
-        UI.uploader.onchange = e => fs.handleFiles(e.target.files);
-        UI.input.placeholder = "Enter command...";
-    },
-
-    loop: function() {
-        document.getElementById("lbl_ram").textContent = (navigator.deviceMemory||4) + " GB";
-        setInterval(() => {
-            const cpu = Math.floor(Math.random() * 50);
-            document.getElementById("bar_cpu").style.width = cpu + "%";
-            document.getElementById("bar_ram").style.width = (cpu/2 + 20) + "%";
-        }, 1200);
-    },
-
-    updateMeters: function(bytes) {
-        const pct = (bytes / CFG.QUOTA) * 100;
-        document.getElementById("lbl_dsk").textContent = fs.fmt(bytes) + " / 10 GB";
-        document.getElementById("bar_dsk").style.width = pct + "%";
-    }
+FS.delete = function(name) {
+    const tx = FS.db.transaction([C.VOL], "readwrite");
+    tx.objectStore(C.VOL).delete(name);
+    tx.oncomplete = () => { Term.log(`Removed ${name}`); FS.scan(); };
 };
 
-// 7. BOOTSEQUENCE
-window.addEventListener("load", () => {
-    sys.bind();  // 1. Attach Listeners
-    fs.init();   // 2. Mount Disk
-    sys.loop();  // 3. Start Monitoring
+FS.format = function() {
+    if(!confirm("Erase all virtual data?")) return;
+    const tx = FS.db.transaction([C.VOL], "readwrite");
+    tx.objectStore(C.VOL).clear();
+    tx.oncomplete = () => { Term.log("Drive formatted"); FS.scan(); };
+};
+
+FS.scan = function() {
+    const list = document.getElementById("file-index");
+    list.innerHTML = "";
     
-    term.print("Winbox MX Kernel v4.0.1");
-    term.print("Runtime Environment: Online");
-});
+    // Check if BIOS exists to lock button
+    let biosFound = false;
+
+    const tx = FS.db.transaction([C.VOL], "readonly");
+    tx.objectStore(C.VOL).openCursor().onsuccess = e => {
+        const c = e.target.result;
+        if(c) {
+            const f = c.value;
+            if(f.name === C.BIOS_NAME) biosFound = true;
+
+            const li = document.createElement("li");
+            li.innerHTML = `<span>${f.name}</span>`;
+            li.onclick = () => App.load(f.name);
+            list.appendChild(li);
+            c.continue();
+        } else {
+            // End of list
+            UI.setBIOSLock(biosFound);
+        }
+    };
+};
+
+/* LOGIC APPLICATION */
+App.installBIOS = function() {
+    Term.log("Reading Module firmware...");
+    // Simulate slight delay
+    setTimeout(() => {
+        const fakeBlob = new Blob(["BINARY_BIOS_DATA"], {type:'application/octet-stream'});
+        FS.write(C.BIOS_NAME, fakeBlob, 'system/iso');
+        Term.log("SUCCESS: BIOS Firmware Mounted.");
+    }, 500);
+};
+
+App.load = function(name) {
+    document.getElementById("lbl-view").innerText = "Viewport: " + name;
+    FS.read(name, (f) => {
+        const stage = document.getElementById("visual-out");
+        stage.innerHTML = "";
+
+        if(f.name === C.BIOS_NAME) {
+            App.bootSimulation(stage);
+        } 
+        else if(f.type.includes('image')) {
+            let i = new Image(); i.src = URL.createObjectURL(f.data);
+            i.style.maxWidth="100%"; i.style.maxHeight="100%";
+            stage.appendChild(i);
+        } 
+        else {
+            let r = new FileReader();
+            r.onload = e => {
+                let p = document.createElement("pre"); 
+                p.innerText=e.target.result.substring(0,600);
+                p.style.padding="20px";
+                stage.appendChild(p);
+            };
+            r.readAsText(f.data);
+        }
+    });
+};
+
+App.bootSimulation = function(stage) {
+    // BIOS SEQ
+    stage.innerHTML = `<div class="os-boot">ACME BIOS v1.2<br>Checking RAM... OK<br>Drive A: FOUND<br>Booting...</div>`;
+    setTimeout(() => {
+        stage.innerHTML = `
+            <div class="os-gui">
+                <div class="os-win">
+                    <div class="os-head"><span>Winbox Loader</span><span>X</span></div>
+                    <div class="os-body">
+                        OS Layer Initialized.<br><br>
+                        Ready for instructions.
+                    </div>
+                </div>
+            </div>`;
+    }, 2000);
+};
+
+/* UI & CONSOLE */
+UI.setBIOSLock = function(isLocked) {
+    const mod = document.getElementById("mod-bios");
+    const bad = document.getElementById("badge-bios");
+    if(isLocked) {
+        mod.classList.add("is-installed");
+        bad.innerText = "MOUNTED";
+    } else {
+        mod.classList.remove("is-installed");
+        bad.innerText = "INSERT";
+    }
+};
+
+UI.upload = () => document.getElementById("sys-shim").click();
+
+Term.log = (txt) => {
+    const d = document.getElementById("term-view");
+    const l = document.createElement("div"); l.innerText="> "+txt;
+    d.appendChild(l); d.scrollTop=d.scrollHeight;
+};
+
+Term.err = (txt) => {
+    const d = document.getElementById("term-view");
+    const l = document.createElement("div"); l.innerText="ERR: "+txt; l.style.color="red";
+    d.appendChild(l); d.scrollTop=d.scrollHeight;
+};
+
+/* BOOT */
+window.onload = function() {
+    // Events
+    const inp = document.getElementById("term-in");
+    inp.addEventListener("keydown", e => {
+        if(e.key === 'Enter') { 
+            let v = inp.value.trim(); 
+            if(v){ Term.log(v); inp.value=''; /* Simple Echo */ }
+        }
+    });
+
+    const shim = document.getElementById("sys-shim");
+    shim.onchange = e => {
+        Array.from(e.target.files).forEach(f => FS.write(f.name, f));
+        shim.value='';
+    };
+
+    // Time
+    setInterval(() => {
+        const d = new Date();
+        document.getElementById("clock").innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
+    }, 1000);
+
+    FS.init();
+    Term.log("Workstation Ready.");
+};
 
 </script>
 </body>
