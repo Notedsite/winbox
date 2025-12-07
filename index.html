@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Winbox MX</title>
-    <!-- CSP: Securely allow local blobs and CDNs -->
+    <!-- SECURITY: Allow UNPKG, COPY.SH, CDNJS, and Blob/Data/FileSystem access -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://copy.sh https://cdnjs.cloudflare.com;">
     
-    <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-    <!-- NATIVE AUTO-LOADER (Tries to load libv86.js from this folder) -->
-    <script src="libv86.js" onerror="window.LOCAL_JS_MISSING=true"></script>
+    <!-- NATIVE LOAD ATTEMPT -->
+    <script src="libv86.js"></script>
 
     <style>
         /* --- INDUSTRIAL MX THEME --- */
@@ -47,9 +46,8 @@
         #indicator.on { background: #0f0; box-shadow: 0 0 5px #0f0; }
         #indicator.err { background: #f00; box-shadow: 0 0 5px #f00; }
 
-        /* --- LAYOUT --- */
+        /* --- GRID --- */
         #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
-        
         .col-left { width: 240px; display: flex; flex-direction: column; gap: 4px; }
         .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         .col-right { width: 170px; display: flex; flex-direction: column; gap: 4px; }
@@ -71,7 +69,7 @@
         .meter-shell { height: 8px; border: 1px solid #999; background: #fff; width: 100%; }
         .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #88b1ff, #316ac5); transition: width 0.3s; }
 
-        /* --- FILE BROWSER --- */
+        /* --- FILE EXPLORER --- */
         #fm-bar {
             background: #fff; border-bottom: 1px solid #aaa; padding: 3px; 
             display: flex; align-items: center; gap: 4px; font-size: 10px;
@@ -93,22 +91,22 @@
         .ico-d { background: goldenrod; border-radius: 2px; }
         .ico-f { background: #aaa; border-radius:1px; }
 
-        /* --- VIEWPORT --- */
+        /* --- DISPLAY --- */
         #visual { 
             width: 100%; height: 100%; background: #222; overflow: hidden; 
             display: flex; align-items: center; justify-content: center; position:relative;
         }
         #visual canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
-        /* --- HARDWARE DOCK --- */
+        /* --- MODULES --- */
         .mod { padding: 8px; background: #fff; border-bottom: 1px solid #ccc; display: flex; gap: 8px; align-items: center; }
         .mod.active { background: #eefbff; border-left: 3px solid var(--highlight); }
         .mod.active .led { background: #0f0; box-shadow: 0 0 5px #0f0; }
         .led { width: 8px; height: 8px; background: #555; border-radius: 50%; }
 
-        /* --- UTILS --- */
         .hidden { display: none !important; }
-        .txt-view { width:100%; height:100%; padding:20px; font-family:'Courier New'; color:#ddd; overflow:auto; user-select:text; background:#333; border:none; outline:none; white-space: pre-wrap; }
+        .txt-view { width:100%; height:100%; padding:20px; font-family:'Courier New'; color:#ddd; overflow:auto; user-select:text; background:#333; }
+        
         #term-log { flex:1; background:#fff; overflow-y:auto; padding:4px; font-family:var(--font-mono); font-size:10px; border-bottom: 1px solid #ccc; }
         #term-in { border: 1px solid #aaa; background: #fdfdfd; padding: 2px; font-family:var(--font-mono); outline: none; }
 
@@ -118,12 +116,12 @@
 
 <div id="toolbar">
     <div id="indicator" title="System State"></div>
-    <div style="font-weight:bold; color:#555; margin-right:5px;">WINBOX.MX22.2</div>
+    <div style="font-weight:bold; color:#555; margin-right:5px;">WINBOX.MX22.3</div>
     <div style="border-left:1px solid #888; height:16px;"></div>
 
-    <button class="mx-btn" id="btn-imp">Import...</button>
-    <button class="mx-btn" id="btn-mkdir">+ Folder</button>
-    <button class="mx-btn" id="btn-fmt" style="color:#a00;">Format Disk</button>
+    <button id="btn-imp" class="mx-btn">Import...</button>
+    <button id="btn-mkdir" class="mx-btn">+ Folder</button>
+    <button id="btn-fmt" class="mx-btn" style="color:#a00;">Format Disk</button>
     
     <div style="flex:1"></div>
     <div id="clock" style="font-size:10px; color:#555;">--:--</div>
@@ -133,6 +131,7 @@
 
 <div id="workspace">
 
+    <!-- LEFT -->
     <div class="col-left">
         <div class="panel" style="height: auto;">
             <div class="p-head">Resource Center</div>
@@ -153,7 +152,7 @@
         <div class="panel" style="flex:1;">
             <div class="p-head">Explorer (A:)</div>
             <div id="fm-bar">
-                <button class="mx-btn" id="btn-up" style="padding:0 5px;" title="Go Parent">&uarr;</button>
+                <button id="btn-up" class="mx-btn" style="padding:0 5px;" title="Go Parent">&uarr;</button>
                 <div id="path-out">/</div>
             </div>
             <div class="p-body">
@@ -164,12 +163,13 @@
         <div class="panel" style="height: 120px;">
             <div class="p-head">Sys Console</div>
             <div class="p-body" style="padding:2px; display:flex; flex-direction:column;">
-                <div id="term-log">Winbox Shell v22.2</div>
+                <div id="term-log">Booting Kernel v22.3...</div>
                 <input type="text" id="term-in" placeholder=">" autocomplete="off">
             </div>
         </div>
     </div>
 
+    <!-- CENTER -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
             <div class="p-head"><span id="lbl-view">Display Output</span></div>
@@ -184,11 +184,13 @@
         </div>
     </div>
 
+    <!-- RIGHT -->
     <div class="col-right">
         <div class="panel" style="flex:1;">
             <div class="p-head">Hardware Bay</div>
             <div style="background:#e0e0e0; flex:1; display:flex; flex-direction:column;">
                 
+                <!-- Boot Module -->
                 <div id="mod-boot" class="mod">
                     <div class="led"></div>
                     <div>
@@ -197,11 +199,12 @@
                     </div>
                 </div>
 
+                <!-- CPU Module -->
                 <div class="mod">
                     <div id="led-cpu" class="led"></div>
                     <div>
                         <div style="font-weight:bold; font-size:10px;">x86 CPU</div>
-                        <div id="lbl-eng" style="font-size:9px; color:#666;">Scanning...</div>
+                        <div id="lbl-eng" style="font-size:9px; color:#666;">Detecting...</div>
                     </div>
                 </div>
                 
@@ -216,56 +219,49 @@
 <script>
 (function() {
     
-    // NEW DATABASE to force clean state and restore Folders/Readme
-    const C = { DB: "WINBOX_V22_2", STORE: "DATA" };
+    // Config: Bumped version again to force clean table
+    const C = { DB: "WINBOX_V22_3", STORE: "NODES" };
     
-    const State = { path: "/", selected: null, os: null, running: false, engineMode: null };
+    const State = { path: "/", selected: null, os: null, running: false, engineFound: false };
 
-    // --- DRIVER LOADING STRATEGY ---
-    async function initDrivers() {
-        // 1. Repo Native Check (Loaded via script tag)
-        if(window.V86Starter && !window.LOCAL_JS_MISSING) {
-            confirmEngine("Repo Native", "#0f0");
-            State.engineMode = "REPO";
-            return;
+    // --- ENGINE POLLING SYSTEM (The Reliability Fix) ---
+    // Instead of relying on events that might misfire, we verify every 1s
+    function monitorEngine() {
+        setInterval(() => {
+            if(window.V86Starter) {
+                State.engineFound = true;
+                document.getElementById("lbl-eng").innerText = "Online (Ready)";
+                document.getElementById("led-cpu").style.backgroundColor = "#0f0";
+            } else {
+                State.engineFound = false;
+                document.getElementById("lbl-eng").innerText = "Engine Missing";
+                document.getElementById("led-cpu").style.backgroundColor = "red";
+            }
+        }, 2000);
+        
+        // Initial probe logic
+        if(window.V86Starter) {
+            Term.log("Native Drivers Found.");
+        } else {
+            // Not native? Try IDB
+            FS.getFile("/libv86.js").then(f => {
+                if(f) {
+                    Term.log("Local Driver in Disk. Loading...");
+                    let s = document.createElement("script");
+                    s.src = URL.createObjectURL(f.data);
+                    document.head.appendChild(s);
+                } else {
+                    Term.log("No drivers. Attempting CDN...");
+                    let s = document.createElement("script");
+                    s.src = "https://unpkg.com/v86@latest/build/libv86.js";
+                    s.onerror = () => Term.err("CDN Blocked. See README.");
+                    document.head.appendChild(s);
+                }
+            });
         }
-
-        Term.log("Local repo file missing. Checking Drive...");
-
-        // 2. IDB Virtual Drive Check
-        let idbDriver = await FS.getFile("/libv86.js");
-        if(idbDriver) {
-            // Found in filesystem!
-            inject(URL.createObjectURL(idbDriver.data), "IDB Local");
-            State.engineMode = "IDB";
-            return;
-        }
-
-        // 3. Fallback to Cloud
-        Term.log("Drive empty. Using Cloud CDN...");
-        State.engineMode = "CDN";
-        inject("https://unpkg.com/v86@latest/build/libv86.js", "CDN Cloud");
     }
 
-    function inject(src, label) {
-        let s = document.createElement('script');
-        s.src = src;
-        s.onload = () => confirmEngine(label, "#0f0");
-        s.onerror = () => {
-            Term.err("Driver Failed: " + label);
-            document.getElementById("lbl-eng").innerText = "Missing";
-            document.getElementById("led-cpu").style.backgroundColor = "#f00";
-        };
-        document.head.appendChild(s);
-    }
-
-    function confirmEngine(label, color) {
-        Term.log("x86 Engine: " + label);
-        document.getElementById("lbl-eng").innerText = "Online (" + label + ")";
-        document.getElementById("led-cpu").style.backgroundColor = color;
-    }
-
-    // --- FILESYSTEM CORE ---
+    // --- FILESYSTEM ---
     const FS = {
         db: null,
         init: () => new Promise(res => {
@@ -273,22 +269,18 @@
             const r = indexedDB.open(C.DB, 1);
             r.onupgradeneeded = e => {
                 let d=e.target.result;
-                if(!d.objectStoreNames.contains(C.STORE)) d.createObjectStore(C.STORE, {keyPath:"id"});
+                d.createObjectStore(C.STORE, {keyPath:"id"});
             };
             r.onsuccess = e => {
                 FS.db = e.target.result;
                 FS.defaults().then(() => { FS.scan(); res(); });
             };
         }),
-        
-        // Restore Default Files and Structure
         defaults: () => new Promise(res => {
             const tx = FS.db.transaction([C.STORE], "readonly");
-            const cnt = tx.objectStore(C.STORE).count();
-            cnt.onsuccess = () => {
-                if(cnt.result > 0) return res(); // Disk has data
-                
-                Term.log("New Disk Detected. Formatting...");
+            tx.objectStore(C.STORE).count().onsuccess = e => {
+                if(e.target.result > 0) return res(); // Disk has data
+                Term.log("Disk init...");
                 
                 const w = (path, type, content) => new Promise(done => {
                      let e = { 
@@ -301,213 +293,42 @@
                      FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).onsuccess=done;
                 });
 
-                // RESTORED: Directories and Detailed Readme
                 w("/", "dir").then(() => 
                 w("/System/", "dir")).then(() => 
                 w("/Drivers/", "dir")).then(() => 
                 w("/README.TXT", "file", 
-`WINBOX MX - MANUAL & DRIVERS
-===========================
+`WINBOX DRIVER MANUAL
+====================
+To fix "Engine Missing" / "No V86Starter":
 
-To run a VM, you must have an OS Image (.img or .iso).
-1. Import your OS file into Root (/).
-2. Click POWER ON.
+1. Download these files:
+   - https://unpkg.com/v86@latest/build/libv86.js
+   - https://unpkg.com/v86@latest/build/v86.wasm
+   - https://unpkg.com/v86@latest/bios/seabios.bin
+   - https://unpkg.com/v86@latest/bios/vgabios.bin
 
-OFFLINE DRIVER INSTALLATION
----------------------------
-If the emulator fails to load (red light on CPU), manually download 
-these files and IMPORT them into this folder (/):
-
-1. https://unpkg.com/v86@latest/build/libv86.js
-2. https://unpkg.com/v86@latest/build/v86.wasm
-3. https://unpkg.com/v86@latest/bios/seabios.bin
-4. https://unpkg.com/v86@latest/bios/vgabios.bin
-
-Once imported, click Reload or Refresh page.
-`
+2. Click "Import" and upload all 4 files to this folder.
+3. Refresh page.`
                 )).then(res);
             };
         }),
-
         getFile: (path) => new Promise(r => {
-            FS.db.transaction([C.STORE],"readonly").objectStore(C.STORE).get(path).onsuccess = e => r(e.target.result);
+            if(!FS.db) return r(null);
+            const tx = FS.db.transaction([C.STORE],"readonly");
+            tx.objectStore(C.STORE).get(path).onsuccess = e => r(e.target.result);
+            tx.objectStore(C.STORE).get(path).onerror = () => r(null);
         }),
         put: (f) => {
             let path = State.path + f.name;
             let type = f.type || "bin";
             if(f.name.endsWith('.js')) type = "text/javascript";
-            
             let e = { id:path, name:f.name, parent:State.path, type:type, data:f, size:f.size, date:new Date() };
             FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).oncomplete = () => {
-                Term.log("Stored: " + f.name);
-                FS.scan();
-                // Hot Load check
-                if(f.name==="libv86.js") initDrivers(); 
+                Term.log("Imported: " + f.name); FS.scan();
+                // Check if this was a driver
+                if(f.name === "libv86.js") window.location.reload(); 
             };
         },
         mkdir: (n) => {
             let path = State.path + n + "/";
-            let e = { id:path, name:n, parent:State.path, type:"dir", size:0 };
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).onsuccess = () => FS.scan();
-        },
-        del: (id) => {
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).delete(id).onsuccess = () => FS.scan();
-        },
-        format: () => {
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).clear().onsuccess = () => window.location.reload();
-        },
-        scan: () => {
-            document.getElementById("file-list").innerHTML = "";
-            document.getElementById("path-out").innerText = State.path;
-            let tot = 0;
-            const tx = FS.db.transaction([C.STORE], "readonly");
-            tx.objectStore(C.STORE).openCursor().onsuccess = e => {
-                const c = e.target.result;
-                if(c) {
-                    let i = c.value;
-                    tot += i.size || 0;
-                    if(i.parent === State.path && i.id !== "/") UI.addItem(i);
-                    // OS Detector
-                    if(!State.os && i.name.match(/\.(iso|img)$/i)) UI.mount(i);
-                    c.continue();
-                } else {
-                    let pct = (tot/10737418240)*100;
-                    document.getElementById("lbl-dsk").innerText = (tot/1048576).toFixed(1) + " MB";
-                    document.getElementById("bar-dsk").style.width = pct + "%";
-                }
-            };
-        }
-    };
-
-    // --- UI ---
-    const UI = {
-        addItem: (i) => {
-            const li = document.createElement("li"); li.className = "item";
-            const isD = i.type === "dir";
-            li.innerHTML = `<div class="ico ${isD?'ico-d':'ico-f'}"></div><span>${i.name}</span>`;
-            li.onclick = () => { document.querySelectorAll(".sel").forEach(x=>x.classList.remove("sel")); li.classList.add("sel"); };
-            li.ondblclick = () => { isD ? (State.path = i.id, FS.scan()) : Viewer.show(i); };
-            li.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Del "+i.name+"?")) FS.del(i.id); };
-            document.getElementById("file-list").appendChild(li);
-        },
-        mount: (i) => {
-            State.os = i;
-            document.getElementById("mod-boot").classList.add("active");
-            document.getElementById("lbl-boot").innerText = i.name;
-            document.getElementById("btn-run").classList.remove("hidden");
-        },
-        up: () => {
-            if(State.path==="/") return;
-            let p = State.path.split("/").filter(x=>x); p.pop();
-            State.path = p.length ? "/"+p.join("/")+"/" : "/";
-            FS.scan();
-        }
-    };
-
-    const Viewer = {
-        show: (i) => {
-            const v = document.getElementById("visual"); v.innerHTML = "";
-            document.getElementById("lbl-view").innerText = "View: " + i.name;
-            // Enhanced View: Allow Select/Copy
-            if(i.type.includes("text") || i.name.match(/\.(txt|js|md|html)$/i)) {
-                let r=new FileReader();
-                r.onload=e=>{
-                    let t=document.createElement("textarea"); t.className="txt-view";
-                    t.value=e.target.result; t.readOnly=true; v.appendChild(t);
-                };
-                r.readAsText(i.data);
-            } else v.innerHTML="<div style='color:#ccc; padding:20px'>Binary Data</div>";
-        }
-    };
-
-    // --- VM CORE ---
-    async function boot() {
-        if(!window.V86Starter && !State.engineMode) return Term.err("No Engine. Check README.");
-        if(State.running) return;
-
-        document.getElementById("visual").innerHTML = "";
-        let config = {
-            memory_size: 128*1024*1024,
-            vga_memory_size: 8*1024*1024,
-            screen_container: document.getElementById("visual"),
-            autostart: true
-        };
-
-        // Determine File Locations (Native Repo vs IDB Blob vs CDN)
-        if (State.engineMode === "REPO") {
-            // Local Repo (Direct Filename Access)
-            config.wasm_path = "v86.wasm";
-            config.bios = { url: "seabios.bin" };
-            config.vga_bios = { url: "vgabios.bin" };
-        } 
-        else if (State.engineMode === "IDB") {
-            // Blob URL Construction from DB Files
-            Term.log("Booting via DB Blobs...");
-            let w = await FS.getFile("/v86.wasm");
-            let b = await FS.getFile("/seabios.bin");
-            let v = await FS.getFile("/vgabios.bin");
-            
-            if(w) config.wasm_path = URL.createObjectURL(w.data);
-            if(b) config.bios = { url: URL.createObjectURL(b.data) };
-            if(v) config.vga_bios = { url: URL.createObjectURL(v.data) };
-        } else {
-            // CDN Fallback
-            config.wasm_path = "https://unpkg.com/v86@latest/build/v86.wasm";
-            config.bios = { url: "https://unpkg.com/v86@latest/bios/seabios.bin" };
-            config.vga_bios = { url: "https://unpkg.com/v86@latest/bios/vgabios.bin" };
-        }
-
-        // Mount
-        if(State.os.name.match(/\.iso$/i)) config.cdrom = { buffer: State.os.data };
-        else config.hda = { buffer: State.os.data };
-
-        try {
-            window.emulator = new V86Starter(config);
-            State.running = true;
-            document.getElementById("indicator").className = "on";
-            document.getElementById("lbl-view").innerText="[ VM ACTIVE ]";
-        } catch(e) { Term.err(e.message); }
-    }
-
-    const Term = {
-        log: t => { let d=document.createElement("div"); d.innerText="> "+t; document.getElementById("term-log").appendChild(d); },
-        err: t => { let d=document.createElement("div"); d.innerText="! "+t; d.style.color="#c00"; document.getElementById("term-log").appendChild(d); }
-    };
-
-    window.onload = () => {
-        // UI
-        document.getElementById("btn-imp").onclick=()=>document.getElementById("sys-file").click();
-        document.getElementById("sys-file").onchange=(e)=>{ Array.from(e.target.files).forEach(f=>FS.put(f)); e.target.value=""; };
-        document.getElementById("btn-mkdir").onclick=()=>{let n=prompt("Name"); if(n)FS.mkdir(n);};
-        document.getElementById("btn-fmt").onclick=FS.format;
-        document.getElementById("btn-up").onclick=UI.up;
-        document.getElementById("btn-run").onclick=boot;
-        document.getElementById("term-in").onkeydown = (e) => {
-            if(e.key==="Enter"){ 
-                // Simple parser
-                let val = e.target.value.trim();
-                let [c, arg] = val.split(" ");
-                if(c==="mkdir" && arg) FS.mkdir(arg);
-                else if(c==="format") FS.format();
-                else Term.log(val);
-                e.target.value=""; 
-            }
-        };
-
-        // Stats Loop
-        setInterval(() => {
-            const d=new Date(); document.getElementById("clock").innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
-            let load = State.running ? Math.random()*40+20 : 0;
-            document.getElementById("bar-cpu").style.width = load + "%";
-            document.getElementById("lbl-cpu").innerText = State.running?"RUN":"IDLE";
-            document.getElementById("bar-ram").style.width = (navigator.deviceMemory||4)*10 + "%";
-            document.getElementById("lbl-ram").innerText= (navigator.deviceMemory||4)+"GB";
-        }, 1000);
-
-        FS.init().then(initDrivers);
-    };
-
-})();
-</script>
-</body>
-</html>
+            let
