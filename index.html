@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WINBOX</title>
+    <link rel="stylesheet" href="https://unpkg.com/98.css">
+    <style>
+        body { background: #008080; margin: 0; height: 100vh; font-family: 'Pixelated MS Sans Serif', Arial; display: flex; gap: 8px; padding: 6px; box-sizing: border-box; overflow: hidden; }
+        .column { display: flex; flex-direction: column; gap: 6px; }
+        .sidebar { width: 220px; flex-shrink: 0; }
+        .main { flex-grow: 1; }
+        .window { height: 100%; display: flex; flex-direction: column; }
+        .window-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Console */
+        #term-history { background: #000; color: #0f0; flex: 1; overflow-y: scroll; padding: 4px; font-family: monospace; white-space: pre-wrap; font-size: 13px; }
+        #term-input-row { display: flex; background: #000; color: #0f0; padding: 2px; }
+        #term-input { background: transparent; border: none; color: #0f0; font-family: monospace; flex: 1; outline: none; }
+        
+        /* File List */
+        #file-ui-list { list-style: none; padding: 0; margin: 0; background: #fff; border: inset 2px; flex: 1; overflow-y: auto; cursor: pointer; }
+        #file-ui-list li { padding: 2px; border-bottom: 1px dotted #ccc; user-select: none; }
+        #file-ui-list li:hover { background: #000080; color: #fff; }
+        
+        /* Storage Bar */
+        #quota-box { border: 1px inset; height: 16px; background: #ccc; position: relative; margin: 5px 0; }
+        #quota-bar { height: 100%; background: #000080; width: 0%; }
+        
+        /* Viewer */
+        #viewer-frame { width: 100%; height: 100%; border: inset 2px; background: #fff; display: block; }
+        
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="column sidebar">
+        <div class="window" style="height: auto;">
+            <div class="title-bar"><div class="title-bar-text">WINBOX // MNGR</div></div>
+            <div class="window-body" style="padding: 10px;">
+                <div>Storage Cap: 10GB</div>
+                <div id="quota-box"><div id="quota-bar"></div></div>
+                <div id="quota-text">0 / 10 GB</div>
+                <hr>
+                <button onclick="document.getElementById('uploader').click()">[+] Upload to A:</button>
+                <input type="file" id="uploader" multiple style="display:none" onchange="fs.handleUpload(this)">
+                <div style="margin-top:10px;">Drive Link:</div>
+                <button id="gdrive-btn" onclick="sys.gAuth()">Authenticate Key</button>
+            </div>
+        </div>
+
+        <div class="window">
+            <div class="title-bar"><div class="title-bar-text">A:\ Files</div></div>
+            <div class="window-body">
+                <ul id="file-ui-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN TERMINAL & OUTPUT -->
+    <div class="column main">
+        <div class="window" style="flex: 1;">
+            <div class="title-bar">
+                <div class="title-bar-text">CMD.EXE</div>
+                <div class="title-bar-controls"><button aria-label="Minimize"></button><button aria-label="Maximize"></button></div>
+            </div>
+            <div class="window-body">
+                <div id="term-history">Winbox Kernel v1.0<br>Ready.<br>Type 'help' for commands.<br></div>
+                <div id="term-input-row">
+                    <span>A:\></span>
+                    <input type="text" id="term-input" autocomplete="off" autofocus>
+                </div>
+            </div>
+        </div>
+
+        <div class="window" style="flex: 2;">
+            <div class="title-bar">
+                <div class="title-bar-text">OUTPUT RENDERER</div>
+                <div class="title-bar-controls"><button aria-label="Close"></button></div>
+            </div>
+            <div class="window-body">
+                <iframe id="viewer-frame" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * SYSTEM CONFIG & UTILS
+ */
+const SYS = {
+    gClientId: "", // PASTE KEY HERE
+    dbName: "WINBOX_FS",
+    storeName: "DISK_A",
+    quotaMax: 10737418240, // 10 GB
+    fmt: (b) => {
+        if(b === 0) return '0 B';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(b) / Math.log(1024));
+        return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+};
+
+/**
+ * FILE SYSTEM ENGINE (IndexedDB)
+ */
+const fs = {
+    db: null,
+    
+    init: async function() {
+        return new Promise((resolve) => {
+            const req = indexedDB.open(SYS.dbName, 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(SYS.storeName)) {
+                    db.createObjectStore(SYS.storeName, { keyPath: "name" });
+                }
+            };
+            req.onsuccess = e => {
+                this.db = e.target.result;
+                this.updateQuota();
+                this.refreshList();
+                resolve();
+            };
+        });
+    },
+
+    save: function(file) {
+        if(!this.db) return;
+        const tx = this.db.transaction([SYS.storeName], "readwrite");
+        const req = tx.objectStore(SYS.storeName).put({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            blob: file,
+            lastMod: new Date().toLocaleTimeString()
+        });
+        req.onsuccess = () => {
+            term.log(`Write: ${file.name} OK`);
+            this.refreshList();
+            this.updateQuota();
+        }
+        req.onerror = () => term.log(`Error: Failed to write ${file.name}. Storage full?`);
+    },
+
+    load: function(filename, mode = "view") {
+        const tx = this.db.transaction([SYS.storeName], "readonly");
+        const req = tx.objectStore(SYS.storeName).get(filename);
+        req.onsuccess = () => {
+            if (req.result) {
+                const url = URL.createObjectURL(req.result.blob);
+                if(mode === "view") {
+                    document.getElementById('viewer-frame').src = url;
+                    term.log(`Render: ${filename} -> DISPLAY`);
+                } else {
+                    term.log(`${filename} [${SYS.fmt(req.result.size)}]`);
+                }
+            } else {
+                term.log(`Error: File '${filename}' not found.`);
+            }
+        };
+    },
+
+    del: function(filename) {
+        const tx = this.db.transaction([SYS.storeName], "readwrite");
+        tx.objectStore(SYS.storeName).delete(filename).onsuccess = () => {
+            term.log(`Deleted: ${filename}`);
+            this.refreshList();
+            this.updateQuota();
+        };
+    },
+
+    list: function() {
+        const tx = this.db.transaction([SYS.storeName], "readonly");
+        const store = tx.objectStore(SYS.storeName);
+        const req = store.getAll();
+        req.onsuccess = () => {
+            const res = req.result;
+            if(res.length === 0) return term.log("Disk empty.");
+            res.forEach(f => term.log(`${f.lastMod}  ${SYS.fmt(f.size).padEnd(8)}  ${f.name}`));
+        };
+    },
+
+    refreshList: function() {
+        const listUi = document.getElementById('file-ui-list');
+        listUi.innerHTML = '';
+        const tx = this.db.transaction([SYS.storeName], "readonly");
+        tx.objectStore(SYS.storeName).getAll().onsuccess = (e) => {
+            e.target.result.forEach(f => {
+                const li = document.createElement('li');
+                li.textContent = f.name;
+                li.onclick = () => fs.load(f.name);
+                listUi.appendChild(li);
+            });
+        };
+    },
+
+    handleUpload: function(input) {
+        for(let i=0; i<input.files.length; i++) {
+            this.save(input.files[i]);
+        }
+        input.value = ''; // Reset
+    },
+
+    updateQuota: async function() {
+        if (navigator.storage && navigator.storage.estimate) {
+            const est = await navigator.storage.estimate();
+            const used = est.usage || 0;
+            const pct = (used / SYS.quotaMax) * 100;
+            
+            document.getElementById('quota-bar').style.width = Math.min(pct, 100) + "%";
+            document.getElementById('quota-text').innerText = `${SYS.fmt(used)} / 10 GB`;
+            
+            if(used > SYS.quotaMax) term.log("WARNING: QUOTA EXCEEDED");
+        }
+    },
+
+    wipe: function() {
+        const tx = this.db.transaction([SYS.storeName], "readwrite");
+        tx.objectStore(SYS.storeName).clear();
+        this.refreshList();
+        this.updateQuota();
+        term.log("Disk Formatted.");
+    }
+};
+
+/**
+ * TERMINAL ENGINE
+ */
+const term = {
+    hist: document.getElementById('term-history'),
+    input: document.getElementById('term-input'),
+    
+    init: function() {
+        this.input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = this.input.value.trim();
+                if(cmd) {
+                    this.log(`A:\\> ${cmd}`);
+                    this.exec(cmd);
+                    this.input.value = '';
+                }
+            }
+        });
+        window.addEventListener('click', () => this.input.focus());
+    },
+
+    log: function(msg) {
+        this.hist.innerText += msg + "\n";
+        this.hist.scrollTop = this.hist.scrollHeight;
+    },
+
+    exec: function(cmdString) {
+        const args = cmdString.split(' ');
+        const cmd = args[0].toLowerCase();
+        const arg1 = args[1];
+
+        switch(cmd) {
+            case 'help':
+                this.log("Commands: ls, view [file], delete [file], clear, format, sync");
+                break;
+            case 'ls':
+            case 'dir':
+                fs.list();
+                break;
+            case 'view':
+            case 'open':
+                arg1 ? fs.load(arg1) : this.log("Usage: view [filename]");
+                break;
+            case 'delete':
+            case 'del':
+            case 'rm':
+                arg1 ? fs.del(arg1) : this.log("Usage: delete [filename]");
+                break;
+            case 'format':
+                if(confirm("Wipe all data?")) fs.wipe();
+                break;
+            case 'clear':
+            case 'cls':
+                this.hist.innerText = '';
+                break;
+            case 'sync':
+                sys.gAuth();
+                break;
+            default:
+                this.log("Bad command or filename.");
+        }
+    }
+};
+
+/**
+ * AUTH / SYNC SKELETON
+ */
+const sys = {
+    gAuth: function() {
+        if(!SYS.gClientId) {
+            term.log("Error: No G_CLIENT_ID defined in code source.");
+            return;
+        }
+        term.log("Connecting to G-Drive OAuth Endpoints...");
+        // Placeholder for GAPIs logic. Without external JS library this is stub.
+        setTimeout(() => term.log("Err: Timeout. (Add library in <head>)"), 1000);
+    }
+};
+
+// Boot
+(async () => {
+    await fs.init();
+    term.init();
+})();
+
+</script>
+</body>
+</html>
