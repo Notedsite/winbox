@@ -3,24 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Updated CSP: Allows UNPKG scripts/styles, BLOBs for the emulator, and DATA images -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://cdnjs.cloudflare.com;">
-    <title>Winbox MX [Cloud Engine]</title>
-    
-    <!-- 1. JSZIP for extracting files -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- 2. V86 Emulator Engine (Direct from CDN) -->
+    <title>Winbox MX [Fixed]</title>
+    <!-- V86 Engine -->
     <script src="https://unpkg.com/v86@latest/build/libv86.js"></script>
 
     <style>
-        /* --- THEME: INDUSTRIAL MX (2004) --- */
+        /* --- THEME: INDUSTRIAL 2004 --- */
         :root {
             --bg-root: #999;
-            --panel-face: #f4f4f4;
+            --panel: #f4f4f4;
             --border: #666;
-            --header-grad-1: #e2e2e2;
-            --header-grad-2: #cccccc;
-            --blue-select: #003399; 
+            --grad-1: #e2e2e2;
+            --grad-2: #cccccc;
+            --accent: #003399; 
             --font-ui: 'Verdana', sans-serif;
             --font-term: 'Courier New', monospace;
         }
@@ -34,84 +29,77 @@
             user-select: none;
         }
 
-        /* --- HEADER --- */
+        /* TOOLBAR */
         #toolbar {
-            height: 28px; background: #d0d0d0; border-bottom: 1px solid #777;
+            height: 30px; background: #d0d0d0; border-bottom: 1px solid #777;
             display: flex; align-items: center; padding: 0 8px; gap: 8px; z-index: 10;
         }
         
         .mx-btn {
             background: linear-gradient(#fff, #e0e0e0); border: 1px solid #777;
-            padding: 3px 10px; font-size: 10px; color: #222; cursor: pointer;
+            padding: 4px 12px; font-size: 10px; color: #222; cursor: pointer;
+            box-shadow: 1px 1px 0px rgba(0,0,0,0.1);
         }
-        .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; }
+        .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; transform: translateY(1px); }
         
         #clock { margin-left: auto; color: #555; font-size: 10px; }
 
-        /* --- LAYOUT --- */
+        /* LAYOUT */
         #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
 
         .panel {
-            background: var(--panel-face); border: 1px solid var(--border);
+            background: var(--panel); border: 1px solid var(--border);
             display: flex; flex-direction: column; 
             box-shadow: 2px 2px 2px rgba(0,0,0,0.1);
         }
         
         .p-head {
-            height: 20px; 
-            background: linear-gradient(to bottom, var(--header-grad-1), var(--header-grad-2));
+            height: 22px; 
+            background: linear-gradient(to bottom, var(--grad-1), var(--grad-2));
             border-bottom: 1px solid #999;
-            display: flex; align-items: center; padding: 0 5px;
+            display: flex; align-items: center; padding: 0 6px;
             font-weight: bold; color: #444; font-size: 10px; text-transform: uppercase;
         }
         .p-head::before { content: "::::"; color: #888; margin-right: 6px; letter-spacing: 1px; }
 
         .p-body { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
 
-        /* COLUMNS */
+        /* COLUMN GRID */
         .col-left { width: 230px; display: flex; flex-direction: column; gap: 4px; }
         .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
 
-        /* --- WIDGETS --- */
-
-        /* Resource Stats */
-        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #f0f0f0; }
+        /* WIDGETS */
+        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #eee; }
         .stat-row { font-size: 9px; color: #666; display: flex; justify-content: space-between; margin-bottom: 2px; }
         .meter-shell { height: 8px; border: 1px solid #999; background: #fff; width: 100%; }
         .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #88b1ff, #316ac5); transition: width 0.3s; }
 
-        /* Module Dock items */
         .mod-item {
             display: flex; gap: 8px; align-items: center; padding: 8px;
             border-bottom: 1px solid #ccc; background: #fff; cursor: default;
         }
-        .mod-item.active { background: #eefbff; cursor: pointer; }
+        .mod-item.active { background: #eefbff; cursor: pointer; border-left: 3px solid #003399; }
         .mod-item.disabled { background: #e0e0e0; color: #888; }
 
-        .chip-icon { 
-            width: 24px; height: 24px; background: #333; 
-            border: 1px solid #000; display: grid; place-items: center; 
-        }
+        .chip-icon { width: 24px; height: 24px; background: #333; border: 1px solid #000; display: grid; place-items: center; }
         .chip-led { width: 6px; height: 6px; background: #444; border-radius: 50%; }
         .mod-item.active .chip-led { background: #0f0; box-shadow: 0 0 4px #0f0; }
         
-        /* Lists & Console */
         ul#file-index { list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; background: #fff; border: 1px solid #aaa; }
-        ul#file-index li { padding: 2px 5px; border-bottom: 1px dotted #ccc; cursor: pointer; display: flex; justify-content: space-between;}
+        ul#file-index li { padding: 3px 5px; border-bottom: 1px dotted #ccc; cursor: pointer; display: flex; justify-content: space-between;}
         ul#file-index li:hover { background: #ddeeff; }
 
-        #term-out { flex:1; background:#fff; overflow-y:auto; border:1px solid #aaa; font-family: var(--font-term); padding:3px; margin-bottom:2px; }
-        #term-in { border:1px solid #aaa; background:#eee; font-family: var(--font-term); }
+        /* Console */
+        #term-out { flex:1; background:#fff; overflow-y:auto; border:1px solid #aaa; font-family: var(--font-term); padding:4px; margin-bottom:2px; }
+        #term-in { border:1px solid #aaa; background:#eee; font-family: var(--font-term); padding: 2px; }
 
-        /* Viewport / Emulator */
+        /* VIEWPORT / EMU */
         #visual-out {
-            width: 100%; height: 100%; background: #000; position: relative;
+            width: 100%; height: 100%; background: #111; position: relative;
             display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
-        /* v86 Canvas scaling */
-        #visual-out canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-
+        #visual-out canvas { display: block; width: 100%; height: 100%; }
         .hidden { display: none !important; }
 
     </style>
@@ -120,12 +108,14 @@
 
 <!-- TOP BAR -->
 <div id="toolbar">
-    <strong style="color:#555; margin-right:10px;">WINBOX.CLOUD</strong>
+    <strong style="color:#555; margin-right:10px;">WINBOX.MX11</strong>
     <div style="border-left:1px solid #888; height: 16px;"></div>
     
-    <button class="mx-btn" onclick="UI.clickUpload()">Import Assets...</button>
-    <button class="mx-btn" onclick="FS.format()" style="color:#900;">Format Disk</button>
-    <div id="clock">Running...</div>
+    <!-- IDs added, ONCLICK removed -->
+    <button id="btn-upload" class="mx-btn">Import File...</button>
+    <button id="btn-format" class="mx-btn" style="color:#900;">Format Disk</button>
+    
+    <div id="clock">Loading...</div>
 </div>
 
 <input type="file" id="sys-upload" class="hidden" multiple>
@@ -133,80 +123,76 @@
 <!-- 3 COLUMN UI -->
 <div id="workspace">
 
-    <!-- LEFT: MONITOR & ASSETS -->
+    <!-- LEFT -->
     <div class="col-left">
-        <!-- Resource Monitor -->
         <div class="panel" style="height: auto;">
             <div class="p-head">Resources</div>
             <div class="p-body">
                 <div class="stat-group">
-                    <div class="stat-row"><span>HOST RAM</span><span id="lbl-ram">--</span></div>
+                    <div class="stat-row"><span>SYSTEM RAM</span><span id="lbl-ram">--</span></div>
                     <div class="meter-shell"><div id="bar-ram" class="meter-fill"></div></div>
                     
-                    <div class="stat-row"><span>EMU THREAD</span><span id="lbl-cpu">IDLE</span></div>
+                    <div class="stat-row"><span>X86 THREAD</span><span id="lbl-cpu">IDLE</span></div>
                     <div class="meter-shell"><div id="bar-cpu" class="meter-fill"></div></div>
                     
-                    <div class="stat-row"><span>VIRTUAL DRIVE</span><span id="lbl-dsk">0%</span></div>
+                    <div class="stat-row"><span>DISK USAGE</span><span id="lbl-dsk">0%</span></div>
                     <div class="meter-shell"><div id="bar-dsk" class="meter-fill"></div></div>
                 </div>
             </div>
         </div>
 
-        <!-- Files -->
         <div class="panel" style="flex:1;">
-            <div class="p-head">Asset Index (IDB)</div>
+            <div class="p-head">Asset Index</div>
             <div class="p-body" style="padding: 2px;">
                 <ul id="file-index"></ul>
             </div>
         </div>
         
-        <!-- Log -->
         <div class="panel" style="height: 120px;">
-            <div class="p-head">System Log</div>
+            <div class="p-head">Log</div>
             <div class="p-body" style="padding: 2px;">
-                <div id="term-out">Kernel Loaded.<br>x86 Engine Standing By.</div>
-                <input type="text" id="term-in" placeholder=">" autocomplete="off">
+                <div id="term-out">Kernel Loaded.<br></div>
+                <input type="text" id="term-in" placeholder="Cmd..." autocomplete="off">
             </div>
         </div>
     </div>
 
-    <!-- CENTER: VIEWPORT -->
+    <!-- CENTER -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
-            <div class="p-head"><span id="stage-lbl">Visual Stage</span></div>
+            <div class="p-head"><span id="stage-lbl">Visual Viewport</span></div>
             <div class="p-body">
                 <div id="visual-out">
                     <div style="text-align:center; color:#666;">
-                        <div style="margin-bottom:10px; font-size:14px; font-weight:bold;">NO ACTIVE OS</div>
-                        Import a .img / .iso file<br>Then enable module in right dock.
+                        <div style="margin-bottom:10px; font-size:14px; font-weight:bold;">NO SIGNAL</div>
+                        Import .IMG / .ISO to start.
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- RIGHT: MODULE DOCK -->
+    <!-- RIGHT -->
     <div class="col-right">
         <div class="panel" style="flex: 1;">
-            <div class="p-head">Module Dock</div>
+            <div class="p-head">Module Bay</div>
             <div class="p-body" style="background:#ddd;">
                 
-                <!-- BOOTABLE DISK MODULE -->
+                <!-- BOOTABLE MODULE -->
                 <div id="mod-os" class="mod-item disabled">
                     <div class="chip-icon"><div class="chip-led"></div></div>
                     <div style="flex:1; overflow:hidden;">
                         <div style="font-weight:bold; font-size:10px;">OS Bootloader</div>
                         <div style="font-size:9px; color:#666;" id="mod-os-lbl">No Image</div>
                     </div>
-                    <button id="btn-run" class="mx-btn hidden" style="padding:1px 6px;">RUN</button>
+                    <button id="btn-run-emu" class="mx-btn hidden" style="padding:2px 8px;">RUN</button>
                 </div>
                 
-                <!-- GENERIC INFO MODULE -->
                 <div class="mod-item">
-                    <div class="chip-icon"><div class="chip-led" style="background:#888"></div></div>
+                    <div class="chip-icon"><div class="chip-led" style="background:#666"></div></div>
                     <div style="flex:1;">
                         <div style="font-weight:bold; font-size:10px; color:#555;">Cloud BIOS</div>
-                        <div style="font-size:9px; color:#666;">SeaBIOS v4 (CDN)</div>
+                        <div style="font-size:9px; color:#666;">SeaBIOS v4</div>
                     </div>
                 </div>
 
@@ -217,58 +203,256 @@
 
 <script>
 /**
- * WINBOX MX KERNEL [Cloud Edition]
- * - Uses Namespaced architecture (App, FS, UI, Term)
- * - Uses UNPKG CDN for emulator files
- * - Uses IndexedDB for storage
+ * WINBOX MX v11
+ * Architecture: Event-Listener based (fixes ReferenceErrors)
  */
 
-const CONFIG = {
-    DB: "WINBOX_CLOUD", 
-    STORE: "VOL0", 
-    OS_MATCH: /\.(img|iso|bin)$/i,
-    LIMIT: 10 * 1024 * 1024 * 1024 // 10GB
-};
+(function() { // Wrap in IIFE to protect scope
 
-/* --- 1. FILE SYSTEM (INDEXED DB) --- */
-const FS = {
-    db: null,
+    // --- CONFIG ---
+    const CONFIG = {
+        DB: "WINBOX_FINAL", 
+        STORE: "PART0", 
+        OS_REGEX: /\.(img|iso|bin)$/i,
+        LIMIT: 10 * 1024 * 1024 * 1024
+    };
 
-    init: async function() {
-        return new Promise(resolve => {
-            if(!window.indexedDB) return Term.err("No DB Support");
-            const req = indexedDB.open(CONFIG.DB, 3);
-            req.onupgradeneeded = e => {
-                let d = e.target.result;
-                if(!d.objectStoreNames.contains(CONFIG.STORE)) d.createObjectStore(CONFIG.STORE, {keyPath:"name"});
+    // --- STATE ---
+    const State = {
+        emuRunning: false,
+        osFile: null,
+        emulator: null
+    };
+
+    // --- UI ELEMENTS MAP ---
+    // Will be populated in init() to guarantee DOM is ready
+    let El = {};
+
+    // --- FILESYSTEM ---
+    const FS = {
+        db: null,
+        init: async () => {
+            return new Promise(resolve => {
+                if(!window.indexedDB) { Term.err("No IndexedDB"); return; }
+                const req = indexedDB.open(CONFIG.DB, 2);
+                req.onupgradeneeded = e => {
+                    const d = e.target.result;
+                    if(!d.objectStoreNames.contains(CONFIG.STORE)) d.createObjectStore(CONFIG.STORE, {keyPath:"name"});
+                };
+                req.onsuccess = e => {
+                    FS.db = e.target.result;
+                    FS.scan();
+                    resolve();
+                };
+            });
+        },
+        put: (f) => {
+            Term.log("Importing: " + f.name);
+            const tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+            tx.objectStore(CONFIG.STORE).put({name:f.name, data:f, size:f.size, type:f.type});
+            tx.oncomplete = () => FS.scan();
+        },
+        del: (name) => {
+            const tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+            tx.objectStore(CONFIG.STORE).delete(name);
+            tx.oncomplete = () => FS.scan();
+        },
+        format: () => {
+            if(!confirm("Format Disk?")) return;
+            const tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+            tx.objectStore(CONFIG.STORE).clear();
+            tx.oncomplete = () => { Term.log("Disk Formatted"); FS.scan(); };
+        },
+        scan: () => {
+            El.fileList.innerHTML = "";
+            let used = 0;
+            State.osFile = null; // Reset found OS
+            
+            const tx = FS.db.transaction([CONFIG.STORE], "readonly");
+            tx.objectStore(CONFIG.STORE).openCursor().onsuccess = e => {
+                const c = e.target.result;
+                if(c) {
+                    const f = c.value;
+                    used += f.size;
+                    
+                    if(f.name.match(CONFIG.OS_REGEX) && !State.osFile) State.osFile = f;
+
+                    const li = document.createElement("li");
+                    li.innerHTML = `<span>${f.name}</span><small style="color:#888">${Fmt.bytes(f.size)}</small>`;
+                    // Listeners instead of onclick
+                    li.addEventListener('click', (ev) => {
+                        if(ev.altKey) FS.del(f.name);
+                        else Term.log("Selected: " + f.name);
+                    });
+                    
+                    El.fileList.appendChild(li);
+                    c.continue();
+                } else {
+                    // Loop Finished
+                    UI.stats(used);
+                    UI.moduleDock();
+                }
             };
-            req.onsuccess = e => {
-                FS.db = e.target.result;
-                FS.scan();
-                resolve();
+        }
+    };
+
+    // --- UI HELPERS ---
+    const UI = {
+        stats: (used) => {
+            const pct = (used / CONFIG.LIMIT)*100;
+            El.barDsk.style.width = pct+"%";
+            El.lblDsk.innerText = Fmt.bytes(used);
+        },
+        moduleDock: () => {
+            const mod = document.getElementById("mod-os");
+            const lbl = document.getElementById("mod-os-lbl");
+            const btn = document.getElementById("btn-run-emu");
+            
+            if(State.osFile) {
+                mod.classList.remove("disabled");
+                mod.classList.add("active");
+                lbl.innerText = State.osFile.name;
+                btn.classList.remove("hidden");
+                // IMPORTANT: We do not attach listener here to prevent duplicates.
+                // Listener is attached globally in init(), checking State.osFile
+            } else {
+                mod.classList.add("disabled");
+                mod.classList.remove("active");
+                lbl.innerText = "No .img/.iso found";
+                btn.classList.add("hidden");
+            }
+        }
+    };
+
+    // --- EMULATOR (V86) ---
+    const Emu = {
+        boot: () => {
+            if(!State.osFile) return;
+            if(State.emuRunning) return Term.err("Already Running (Reload page to reset)");
+            
+            Term.log("Mounting " + State.osFile.name + "...");
+            
+            El.visual.innerHTML = ""; // Clear "No Signal" text
+            El.stageLbl.innerText = "Running: " + State.osFile.name;
+            
+            const fileData = State.osFile.data;
+            const isISO = State.osFile.name.toLowerCase().endsWith('.iso');
+            
+            const cfg = {
+                wasm_path: "https://unpkg.com/v86@latest/build/v86.wasm",
+                memory_size: 128 * 1024 * 1024,
+                vga_memory_size: 8 * 1024 * 1024,
+                screen_container: El.visual,
+                bios: { url: "https://unpkg.com/v86@latest/bios/seabios.bin" },
+                vga_bios: { url: "https://unpkg.com/v86@latest/bios/vgabios.bin" },
+                autostart: true
             };
+
+            if(isISO) cfg.cdrom = { buffer: fileData };
+            else cfg.hda = { buffer: fileData };
+
+            try {
+                State.emulator = new V86Starter(cfg);
+                State.emuRunning = true;
+                Term.log("x86 Engine Started.");
+            } catch(e) {
+                Term.err(e.message);
+                console.error(e);
+            }
+        }
+    };
+
+    // --- UTILS ---
+    const Term = {
+        log: (t) => {
+            const d = document.createElement("div");
+            d.innerText = "> " + t;
+            El.termOut.appendChild(d);
+            El.termOut.scrollTop = El.termOut.scrollHeight;
+        },
+        err: (t) => {
+            const d = document.createElement("div");
+            d.innerText = "ERR: " + t; d.style.color="red";
+            El.termOut.appendChild(d);
+            El.termOut.scrollTop = El.termOut.scrollHeight;
+        }
+    };
+    
+    const Fmt = {
+        bytes: (b) => {
+            if(b===0) return "0B";
+            const i = Math.floor(Math.log(b)/Math.log(1024));
+            return (b/Math.pow(1024,i)).toFixed(1)+['B','KB','MB','GB'][i];
+        }
+    };
+
+    // --- INITIALIZATION (Event Binding) ---
+    window.addEventListener('load', () => {
+        // Map DOM
+        El.fileList = document.getElementById("file-index");
+        El.termOut = document.getElementById("term-out");
+        El.visual = document.getElementById("visual-out");
+        El.sysUpload = document.getElementById("sys-upload");
+        El.clock = document.getElementById("clock");
+        El.barDsk = document.getElementById("bar-dsk");
+        El.lblDsk = document.getElementById("lbl-dsk");
+        El.stageLbl = document.getElementById("stage-lbl");
+        El.btnRun = document.getElementById("btn-run-emu");
+        El.cpuBar = document.getElementById("bar-cpu");
+        El.cpuLbl = document.getElementById("lbl-cpu");
+        
+        // Buttons - Bind via Listener (SAFE)
+        document.getElementById("btn-upload").addEventListener('click', () => {
+            El.sysUpload.click();
         });
-    },
 
-    save: function(name, blob, type) {
-        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
-        tx.objectStore(CONFIG.STORE).put({name:name, data:blob, size:blob.size, type:type||blob.type});
-        tx.oncomplete = () => FS.scan();
-    },
+        document.getElementById("btn-format").addEventListener('click', () => {
+            FS.format();
+        });
+        
+        // Special Case: The Run Button (bind once, logic inside checks state)
+        El.btnRun.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if(State.osFile) Emu.boot();
+        });
 
-    get: function(name, cb) {
-        let tx = FS.db.transaction([CONFIG.STORE], "readonly");
-        let r = tx.objectStore(CONFIG.STORE).get(name);
-        r.onsuccess = () => cb(r.result || null);
-    },
+        // Upload Input
+        El.sysUpload.addEventListener('change', (e) => {
+            Array.from(e.target.files).forEach(f => FS.put(f));
+            e.target.value = '';
+        });
 
-    del: function(name) {
-        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
-        tx.objectStore(CONFIG.STORE).delete(name);
-        tx.oncomplete = () => { Term.log("Deleted "+name); FS.scan(); };
-    },
+        // Keyboard Cmd
+        document.getElementById("term-in").addEventListener('keydown', (e) => {
+            if(e.key === "Enter") {
+                const val = e.target.value.trim();
+                if(val) Term.log(val);
+                e.target.value = '';
+            }
+        });
 
-    format: function() {
-        if(!confirm("Format Disk?")) return;
-        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
-        tx.objectStore(CONFI
+        // Sim Stats Loop
+        document.getElementById("lbl-ram").innerText = (navigator.deviceMemory||4)+"GB";
+        setInterval(() => {
+            // CPU visual
+            let load = State.emuRunning ? Math.random()*50 + 20 : 0;
+            El.cpuBar.style.width = load + "%";
+            El.cpuLbl.innerText = State.emuRunning ? Math.floor(load)+"%" : "IDLE";
+            
+            // Time
+            const d = new Date();
+            El.clock.innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
+        }, 1000);
+
+        // Start File System
+        FS.init();
+        
+        // Log Ready
+        Term.log("Sys Ready.");
+    });
+
+})();
+
+</script>
+</body>
+</html>
