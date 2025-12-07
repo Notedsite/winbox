@@ -4,35 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Winbox MX</title>
-    <!-- SECURITY: Allow UNPKG, COPY.SH, CDNJS, and Blob/Data/FileSystem access -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://copy.sh https://cdnjs.cloudflare.com;">
     
+    <!-- CSP: Allows blobs, cdns, and same-folder scripts -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://copy.sh https://cdnjs.cloudflare.com;">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-    <!-- NATIVE LOAD ATTEMPT -->
-    <script src="libv86.js"></script>
+    <!-- NATIVE AUTO-LOADER (Attempt to load from index.html folder first) -->
+    <script src="libv86.js" onerror="window.NATIVE_MISSING=true"></script>
 
     <style>
-        /* --- INDUSTRIAL MX THEME --- */
+        /* --- INDUSTRIAL THEME --- */
         :root {
             --bg: #999;
             --panel: #f4f4f4;
             --border: #666;
-            --highlight: #003399;
-            --font-ui: 'Verdana', sans-serif;
-            --font-mono: 'Courier New', monospace;
+            --blue: #003399;
+            --font: 'Verdana', sans-serif;
+            --mono: 'Courier New', monospace;
         }
 
         * { box-sizing: border-box; }
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
-            background: var(--bg); font-family: var(--font-ui); font-size: 11px;
+            background: var(--bg); font-family: var(--font); font-size: 11px;
             display: flex; flex-direction: column; overflow: hidden; user-select: none;
         }
 
-        /* --- TOOLBAR --- */
         #toolbar {
-            height: 30px; background: #d0d0d0; border-bottom: 1px solid #777;
+            height: 32px; background: #d0d0d0; border-bottom: 1px solid #777;
             display: flex; align-items: center; padding: 0 8px; gap: 8px; z-index: 10;
         }
         .mx-btn {
@@ -42,129 +41,91 @@
         }
         .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; transform: translateY(1px); }
         
-        #indicator { width: 8px; height: 8px; border-radius: 50%; background: #777; border: 1px solid #444; margin-right: 6px; }
-        #indicator.on { background: #0f0; box-shadow: 0 0 5px #0f0; }
-        #indicator.err { background: #f00; box-shadow: 0 0 5px #f00; }
+        #led-pwr { width: 8px; height: 8px; border-radius: 50%; background: #777; border: 1px solid #444; margin-right: 6px; }
+        #led-pwr.on { background: #0f0; box-shadow: 0 0 5px #0f0; }
 
-        /* --- GRID --- */
+        /* GRID */
         #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
         .col-left { width: 240px; display: flex; flex-direction: column; gap: 4px; }
         .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        .col-right { width: 170px; display: flex; flex-direction: column; gap: 4px; }
+        .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
 
         .panel {
             background: var(--panel); border: 1px solid var(--border);
             display: flex; flex-direction: column; box-shadow: 2px 2px 2px rgba(0,0,0,0.1);
         }
         .p-head {
-            height: 22px; background: linear-gradient(to bottom, #eaeaea, #c0c0c0);
+            height: 22px; background: linear-gradient(#eaeaea, #c0c0c0);
             border-bottom: 1px solid #999; display: flex; align-items: center; padding: 0 6px;
             font-weight: bold; color: #444; font-size: 10px; text-transform: uppercase;
         }
         .p-body { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
 
-        /* --- STATS --- */
-        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #eee; }
-        .stat-row { font-size: 9px; color: #666; display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .meter-shell { height: 8px; border: 1px solid #999; background: #fff; width: 100%; }
-        .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #88b1ff, #316ac5); transition: width 0.3s; }
+        /* STATS */
+        .meter { height: 8px; border: 1px solid #999; background: #fff; width: 100%; margin:2px 0 6px 0; }
+        .fill { height: 100%; width: 0%; background: linear-gradient(90deg, #88b1ff, #316ac5); transition: width 0.3s; }
 
-        /* --- FILE EXPLORER --- */
-        #fm-bar {
-            background: #fff; border-bottom: 1px solid #aaa; padding: 3px; 
-            display: flex; align-items: center; gap: 4px; font-size: 10px;
-        }
-        #path-out { flex:1; background: #fff; border: 1px inset #ccc; padding: 2px 4px; color:#555; overflow:hidden; white-space:nowrap;}
-        
-        ul#file-list { 
-            list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; 
-            background: #fff; border: 1px solid #aaa; 
-        }
-        li.item {
-            padding: 3px 6px; border-bottom: 1px dotted #ccc; cursor: default;
-            display: flex; align-items: center; gap: 6px;
-        }
+        /* FILE BROWSER */
+        #path { background: #fff; border: 1px inset #ccc; padding: 2px 4px; margin-left:4px; flex:1; }
+        ul#f-list { list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; background: #fff; }
+        li.item { padding: 3px 6px; border-bottom: 1px dotted #ccc; cursor: default; display: flex; gap: 6px; align-items: center;}
         li.item:hover { background: #eef; }
-        li.item.sel { background: var(--highlight); color: white; }
+        li.item.sel { background: var(--blue); color: white; }
+        .ico { width: 12px; height: 12px; display: block; }
+        .d { background: goldenrod; border-radius: 2px; } .f { background: #aaa; }
 
-        .ico { width: 12px; height: 12px; display: inline-block; }
-        .ico-d { background: goldenrod; border-radius: 2px; }
-        .ico-f { background: #aaa; border-radius:1px; }
+        /* DISPLAY */
+        #vis { width: 100%; height: 100%; background: #111; display: flex; align-items: center; justify-content: center; position:relative; overflow:hidden;}
+        #vis canvas { display: block; width: 100%; height: 100%; }
 
-        /* --- DISPLAY --- */
-        #visual { 
-            width: 100%; height: 100%; background: #222; overflow: hidden; 
-            display: flex; align-items: center; justify-content: center; position:relative;
-        }
-        #visual canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-
-        /* --- MODULES --- */
+        /* HARDWARE DOCK */
         .mod { padding: 8px; background: #fff; border-bottom: 1px solid #ccc; display: flex; gap: 8px; align-items: center; }
-        .mod.active { background: #eefbff; border-left: 3px solid var(--highlight); }
-        .mod.active .led { background: #0f0; box-shadow: 0 0 5px #0f0; }
+        .mod.ok { border-left: 3px solid #0a0; }
         .led { width: 8px; height: 8px; background: #555; border-radius: 50%; }
+        .mod.ok .led { background:#0f0; box-shadow:0 0 5px #0f0; }
 
-        .hidden { display: none !important; }
-        .txt-view { width:100%; height:100%; padding:20px; font-family:'Courier New'; color:#ddd; overflow:auto; user-select:text; background:#333; }
-        
-        #term-log { flex:1; background:#fff; overflow-y:auto; padding:4px; font-family:var(--font-mono); font-size:10px; border-bottom: 1px solid #ccc; }
-        #term-in { border: 1px solid #aaa; background: #fdfdfd; padding: 2px; font-family:var(--font-mono); outline: none; }
-
+        /* LOG */
+        #log { flex:1; background:#fff; padding:4px; font-family:var(--mono); overflow-y:auto; border-bottom:1px solid #ccc; }
+        #cli { border:1px solid #999; background:#eee; padding:2px; font-family:var(--mono); }
+        .hidden { display:none!important; }
+        .txt { width:100%; height:100%; padding:20px; font-family:var(--mono); background:#222; color:#ccc; border:none; resize:none;}
     </style>
 </head>
 <body>
 
 <div id="toolbar">
-    <div id="indicator" title="System State"></div>
-    <div style="font-weight:bold; color:#555; margin-right:5px;">WINBOX.MX22.3</div>
+    <div id="led-pwr"></div><strong style="margin:0 10px; color:#444;">WINBOX.MX22.4</strong>
     <div style="border-left:1px solid #888; height:16px;"></div>
-
-    <button id="btn-imp" class="mx-btn">Import...</button>
-    <button id="btn-mkdir" class="mx-btn">+ Folder</button>
-    <button id="btn-fmt" class="mx-btn" style="color:#a00;">Format Disk</button>
-    
-    <div style="flex:1"></div>
-    <div id="clock" style="font-size:10px; color:#555;">--:--</div>
+    <button class="mx-btn" id="b-imp">Import</button>
+    <button class="mx-btn" id="b-md">+ Dir</button>
+    <button class="mx-btn" id="b-fmt" style="color:#a00">Format</button>
+    <div style="flex:1"></div><div id="clock">Init...</div>
 </div>
-
-<input type="file" id="sys-file" class="hidden" multiple>
+<input type="file" id="up" class="hidden" multiple>
 
 <div id="workspace">
-
     <!-- LEFT -->
     <div class="col-left">
-        <div class="panel" style="height: auto;">
-            <div class="p-head">Resource Center</div>
-            <div class="p-body">
-                <div class="stat-group">
-                    <div class="stat-row"><span>HOST RAM</span><span id="lbl-ram">--</span></div>
-                    <div class="meter-shell"><div id="bar-ram" class="meter-fill"></div></div>
-                    
-                    <div class="stat-row"><span>EMU CORE</span><span id="lbl-cpu">IDLE</span></div>
-                    <div class="meter-shell"><div id="bar-cpu" class="meter-fill"></div></div>
-                    
-                    <div class="stat-row"><span>VIRTUAL HD</span><span id="lbl-dsk">0%</span></div>
-                    <div class="meter-shell"><div id="bar-dsk" class="meter-fill"></div></div>
-                </div>
+        <div class="panel" style="height:auto; padding:5px;">
+            <div class="p-head">Monitor</div>
+            <div style="padding:5px;">
+                <div>MEM</div><div class="meter"><div id="m-ram" class="fill"></div></div>
+                <div>CPU</div><div class="meter"><div id="m-cpu" class="fill"></div></div>
+                <div>DISK</div><div class="meter"><div id="m-dsk" class="fill"></div></div>
             </div>
         </div>
-
         <div class="panel" style="flex:1;">
-            <div class="p-head">Explorer (A:)</div>
-            <div id="fm-bar">
-                <button id="btn-up" class="mx-btn" style="padding:0 5px;" title="Go Parent">&uarr;</button>
-                <div id="path-out">/</div>
+            <div class="p-head">Files</div>
+            <div style="display:flex; background:#fff; padding:3px; border-bottom:1px solid #ccc;">
+                <button class="mx-btn" id="b-up" style="padding:0 5px;">&uarr;</button><div id="path">/</div>
             </div>
-            <div class="p-body">
-                <ul id="file-list"></ul>
-            </div>
+            <ul id="f-list"></ul>
         </div>
-        
-        <div class="panel" style="height: 120px;">
-            <div class="p-head">Sys Console</div>
-            <div class="p-body" style="padding:2px; display:flex; flex-direction:column;">
-                <div id="term-log">Booting Kernel v22.3...</div>
-                <input type="text" id="term-in" placeholder=">" autocomplete="off">
+        <div class="panel" style="height:120px;">
+            <div class="p-head">Console</div>
+            <div class="p-body" style="padding:2px;">
+                <div id="log">Kernel Loading...<br></div>
+                <input type="text" id="cli" placeholder=">">
             </div>
         </div>
     </div>
@@ -172,12 +133,11 @@
     <!-- CENTER -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
-            <div class="p-head"><span id="lbl-view">Display Output</span></div>
+            <div class="p-head"><span id="vis-lbl">Viewport</span></div>
             <div class="p-body">
-                <div id="visual">
-                    <div style="text-align:center; color:#777; font-family: sans-serif;">
-                        <div style="font-size:16px; font-weight:bold; letter-spacing:2px; margin-bottom:10px; color:#555;">NO SIGNAL</div>
-                        [ System Idle ]
+                <div id="vis">
+                    <div style="text-align:center; color:#666;">
+                        <strong>NO SIGNAL</strong><br>Check Power / Disk
                     </div>
                 </div>
             </div>
@@ -187,316 +147,261 @@
     <!-- RIGHT -->
     <div class="col-right">
         <div class="panel" style="flex:1;">
-            <div class="p-head">Hardware Bay</div>
-            <div style="background:#e0e0e0; flex:1; display:flex; flex-direction:column;">
-                
-                <!-- Boot Module -->
-                <div id="mod-boot" class="mod">
+            <div class="p-head">Hardware</div>
+            <div style="background:#e0e0e0; flex:1;">
+                <div id="m-dsk-stat" class="mod">
                     <div class="led"></div>
-                    <div>
-                        <div style="font-weight:bold; font-size:10px;">OS Loader</div>
-                        <div id="lbl-boot" style="font-size:9px; color:#666;">No Media</div>
-                    </div>
+                    <div><b>Bootloader</b><br><span id="t-boot" style="color:#666; font-size:9px;">No Disk</span></div>
                 </div>
-
-                <!-- CPU Module -->
                 <div class="mod">
-                    <div id="led-cpu" class="led"></div>
-                    <div>
-                        <div style="font-weight:bold; font-size:10px;">x86 CPU</div>
-                        <div id="lbl-eng" style="font-size:9px; color:#666;">Detecting...</div>
-                    </div>
+                    <div class="led" id="l-cpu"></div>
+                    <div><b>x86 Driver</b><br><span id="t-eng" style="color:#666; font-size:9px;">Check...</span></div>
                 </div>
-                
-                <div style="flex:1;"></div>
-                <button id="btn-run" class="mx-btn hidden" style="margin:8px; justify-content:center; background:#bbf; height:24px; font-weight:bold;">POWER ON</button>
+                <div style="text-align:center; margin-top:10px;">
+                    <button id="b-run" class="mx-btn hidden" style="width:90%; height:25px; background:#bbf; font-weight:bold;">POWER ON</button>
+                </div>
             </div>
         </div>
     </div>
-
 </div>
 
 <script>
-(function() {
-    
-    // Config: Bumped version again to force clean table
-    const C = { DB: "WINBOX_V22_3", STORE: "NODES" };
-    
-    const State = { path: "/", selected: null, os: null, running: false, engineFound: false };
+(function(){
+const C={DB:"WINBOX_V22_4",ST:"DATA"};
+const S={path:"/",run:false,os:null};
 
-    // --- ENGINE POLLING SYSTEM (The Reliability Fix) ---
-    // Instead of relying on events that might misfire, we verify every 1s
-    function monitorEngine() {
-        setInterval(() => {
-            if(window.V86Starter) {
-                State.engineFound = true;
-                document.getElementById("lbl-eng").innerText = "Online (Ready)";
-                document.getElementById("led-cpu").style.backgroundColor = "#0f0";
-            } else {
-                State.engineFound = false;
-                document.getElementById("lbl-eng").innerText = "Engine Missing";
-                document.getElementById("led-cpu").style.backgroundColor = "red";
-            }
-        }, 2000);
-        
-        // Initial probe logic
-        if(window.V86Starter) {
-            Term.log("Native Drivers Found.");
-        } else {
-            // Not native? Try IDB
-            FS.getFile("/libv86.js").then(f => {
-                if(f) {
-                    Term.log("Local Driver in Disk. Loading...");
-                    let s = document.createElement("script");
-                    s.src = URL.createObjectURL(f.data);
-                    document.head.appendChild(s);
-                } else {
-                    Term.log("No drivers. Attempting CDN...");
-                    let s = document.createElement("script");
-                    s.src = "https://unpkg.com/v86@latest/build/libv86.js";
-                    s.onerror = () => Term.err("CDN Blocked. See README.");
-                    document.head.appendChild(s);
-                }
+// --- CORE: DRIVER MANAGEMENT ---
+async function initEngine(fs) {
+    Log("SYS: Init Driver Check...");
+    
+    // 1. Check for Repo Native (script tag in HTML head)
+    if(window.V86Starter && !window.NATIVE_MISSING) {
+        setEng("Native Repo", "#0a0");
+        return;
+    }
+
+    // 2. Check Virtual Disk for manual 'libv86.js'
+    const localLib = await fs.get("/libv86.js");
+    if(localLib) {
+        Log("SYS: Found '/libv86.js' in Disk.");
+        inject(URL.createObjectURL(localLib.data), "IDB Local");
+    } else {
+        // 3. Fallback
+        Log("SYS: No local driver. Defaulting to CDN.");
+        inject("https://unpkg.com/v86@latest/build/libv86.js", "CDN Cloud");
+    }
+}
+
+function inject(url, mode) {
+    const s = document.createElement("script");
+    s.src = url;
+    s.onload = () => {
+        if(window.V86Starter) setEng(mode, "#0a0");
+        else setEng("Obj Missing", "red");
+    };
+    s.onerror = () => setEng("Load Fail", "red");
+    document.head.appendChild(s);
+}
+
+function setEng(txt, col) {
+    Log("ENG: " + txt);
+    document.getElementById("t-eng").innerText = txt;
+    document.getElementById("l-cpu").style.backgroundColor = col;
+}
+
+// --- CORE: BOOT SEQUENCE ---
+async function powerOn() {
+    if(S.run) return;
+    if(!window.V86Starter) return Log("ERR: No Engine Driver.");
+    if(!S.os) return Log("ERR: No OS Disk.");
+
+    let v = document.getElementById("vis");
+    v.innerHTML="";
+    document.getElementById("vis-lbl").innerText = "Viewport [BOOTING...]";
+
+    // 1. Asset Resolution (The Logic You Wanted)
+    Log("BOOT: Checking for Hardware assets...");
+    
+    let w_blob = await FS.get("/v86.wasm");
+    let b_blob = await FS.get("/seabios.bin");
+    let v_blob = await FS.get("/vgabios.bin");
+
+    // Prefer Local Blobs -> Fallback to CDN
+    const cfg = {
+        memory_size: 128*1024*1024,
+        vga_memory_size: 8*1024*1024,
+        screen_container: v,
+        wasm_path: w_blob ? URL.createObjectURL(w_blob.data) : "https://unpkg.com/v86@latest/build/v86.wasm",
+        bios: { url: b_blob ? URL.createObjectURL(b_blob.data) : "https://unpkg.com/v86@latest/bios/seabios.bin" },
+        vga_bios: { url: v_blob ? URL.createObjectURL(v_blob.data) : "https://unpkg.com/v86@latest/bios/vgabios.bin" },
+        autostart: true
+    };
+
+    Log("WASM Source: " + (w_blob ? "LOCAL" : "CDN"));
+    Log("BIOS Source: " + (b_blob ? "LOCAL" : "CDN"));
+
+    // 2. Mount Disk
+    if(S.os.name.match(/\.iso$/i)) cfg.cdrom = { buffer: S.os.data };
+    else cfg.hda = { buffer: S.os.data };
+
+    try {
+        window.emulator = new V86Starter(cfg);
+        S.run=true;
+        document.getElementById("led-pwr").className="on";
+        document.getElementById("vis-lbl").innerText = "Viewport [RUNNING]";
+        Log("SYS: VM Started Successfully.");
+    } catch(e) {
+        Log("ERR: VM Crash - " + e.message);
+        v.innerHTML = "<div style='color:red;padding:20px'>VM CRASHED<br>"+e.message+"</div>";
+    }
+}
+
+// --- FILESYSTEM ---
+const FS = {
+    db:null,
+    init:()=>new Promise(r=>{
+        let q=indexedDB.open(C.DB,1);
+        q.onupgradeneeded=e=>{
+            e.target.result.createObjectStore(C.ST,{keyPath:"id"});
+        };
+        q.onsuccess=e=>{
+            FS.db=e.target.result;
+            FS.def().then(()=>{FS.scn();r();});
+        };
+    }),
+    // Install Defaults
+    def:()=>new Promise(r=>{
+        let tx=FS.db.transaction([C.ST],"readonly");
+        tx.objectStore(C.ST).count().onsuccess=e=>{
+            if(e.target.result>0)return r();
+            Log("FS: Formatting...");
+            const w=(p,t,c)=>new Promise(d=>{
+                let i={id:p,name:p.split('/').filter(Boolean).pop()||"Root",parent:p.match(/\/[^\/]+\/$/)?p.replace(/[^\/]+\/$/,''):"/",type:t,size:c?c.length:0,date:new Date()};
+                if(c)i.data=new Blob([c],{type:"text/plain"});
+                FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).put(i).onsuccess=d;
             });
+            w("/","dir").then(()=>w("/System/","dir")).then(()=>w("/Drivers/","dir")).then(()=>
+            w("/README.TXT","file",
+"WINBOX MANUAL\n=============\n\n1. IMPORT: Upload .img or .iso OS file.\n2. RUN: Click POWER ON in Hardware Bay.\n\nOFFLINE MODE:\nTo avoid CDN errors, upload these files to / (Root):\n- libv86.js\n- v86.wasm\n- seabios.bin\n- vgabios.bin"
+            )).then(r);
         }
-    }
-
-    // --- FILESYSTEM ---
-    const FS = {
-        db: null,
-        init: () => new Promise(res => {
-            if(!indexedDB) return;
-            const r = indexedDB.open(C.DB, 1);
-            r.onupgradeneeded = e => {
-                let d=e.target.result;
-                d.createObjectStore(C.STORE, {keyPath:"id"});
-            };
-            r.onsuccess = e => {
-                FS.db = e.target.result;
-                FS.defaults().then(() => { FS.scan(); res(); });
-            };
-        }),
-        defaults: () => new Promise(res => {
-            const tx = FS.db.transaction([C.STORE], "readonly");
-            tx.objectStore(C.STORE).count().onsuccess = e => {
-                if(e.target.result > 0) return res(); // Disk has data
-                Term.log("Disk init...");
-                
-                const w = (path, type, content) => new Promise(done => {
-                     let e = { 
-                         id:path, 
-                         name:path.split('/').filter(x=>x).pop()||"Root", 
-                         parent:path.match(/\/[^\/]+\/$/)?path.replace(/[^\/]+\/$/,''):"/", 
-                         type:type, size:content?content.length:0, date:new Date() 
-                     };
-                     if(content) e.data = new Blob([content], {type:"text/plain"});
-                     FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).onsuccess=done;
-                });
-
-                w("/", "dir").then(() => 
-                w("/System/", "dir")).then(() => 
-                w("/Drivers/", "dir")).then(() => 
-                w("/README.TXT", "file", 
-`WINBOX DRIVER MANUAL
-====================
-To fix "Engine Missing" / "No V86Starter":
-
-1. Download these files:
-   - https://unpkg.com/v86@latest/build/libv86.js
-   - https://unpkg.com/v86@latest/build/v86.wasm
-   - https://unpkg.com/v86@latest/bios/seabios.bin
-   - https://unpkg.com/v86@latest/bios/vgabios.bin
-
-2. Click "Import" and upload all 4 files to this folder.
-3. Refresh page.`
-                )).then(res);
-            };
-        }),
-        getFile: (path) => new Promise(r => {
-            if(!FS.db) return r(null);
-            const tx = FS.db.transaction([C.STORE],"readonly");
-            tx.objectStore(C.STORE).get(path).onsuccess = e => r(e.target.result);
-            tx.objectStore(C.STORE).get(path).onerror = () => r(null);
-        }),
-        put: (f) => {
-            let path = State.path + f.name;
-            let type = f.type || "bin";
-            if(f.name.endsWith('.js')) type = "text/javascript";
-            let e = { id:path, name:f.name, parent:State.path, type:type, data:f, size:f.size, date:new Date() };
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).oncomplete = () => {
-                Term.log("Imported: " + f.name); FS.scan();
-                // Check if this was a driver
-                if(f.name === "libv86.js") window.location.reload(); 
-            };
-        },
-        mkdir: (n) => {
-            let path = State.path + n + "/";
-            let e = { id:path, name:n, parent:State.path, type:"dir", size:0 };
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).onsuccess = () => FS.scan();
-        },
-        del: (id) => {
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).delete(id).onsuccess = () => FS.scan();
-        },
-        format: () => {
-            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).clear().onsuccess = () => window.location.reload();
-        },
-        create: (name) => {
-             const b = new Blob(["// New File"], {type:"text/plain"});
-             const path = State.path + name;
-             const entry = { id:path, name:name, parent:State.path, type:"text/plain", data:b, size:b.size, date:new Date() };
-             const tx = FS.db.transaction([C.STORE], "readwrite");
-             tx.objectStore(C.STORE).put(entry);
-             tx.oncomplete = () => { Term.log("Created: "+name); FS.scan(); };
-        },
-        scan: () => {
-            document.getElementById("file-list").innerHTML = "";
-            document.getElementById("path-out").innerText = State.path;
-            let tot = 0;
-            const tx = FS.db.transaction([C.STORE], "readonly");
-            tx.objectStore(C.STORE).openCursor().onsuccess = e => {
-                const c = e.target.result;
-                if(c) {
-                    let i = c.value;
-                    tot += i.size || 0;
-                    if(i.parent === State.path && i.id !== "/") UI.addItem(i);
-                    // OS Check
-                    if(!State.os && i.name.match(/\.(iso|img)$/i)) UI.mount(i);
-                    c.continue();
-                } else {
-                    document.getElementById("lbl-dsk").innerText = (tot/1048576).toFixed(1) + " MB";
-                    document.getElementById("bar-dsk").style.width = (tot/10e9)*100 + "%";
-                }
-            };
-        }
-    };
-
-    // --- UI ---
-    const UI = {
-        addItem: (i) => {
-            const li = document.createElement("li"); li.className = "item";
-            const isD = i.type === "dir";
-            li.innerHTML = `<div class="ico ${isD?'ico-d':'ico-f'}"></div><span>${i.name}</span>`;
-            li.onclick = () => { document.querySelectorAll(".sel").forEach(x=>x.classList.remove("sel")); li.classList.add("sel"); };
-            li.ondblclick = () => { isD ? (State.path = i.id, FS.scan()) : Viewer.show(i); };
-            li.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Delete "+i.name+"?")) FS.del(i.id); };
-            document.getElementById("file-list").appendChild(li);
-        },
-        mount: (i) => {
-            State.os = i;
-            document.getElementById("mod-boot").classList.add("active");
-            document.getElementById("lbl-boot").innerText = i.name;
-            document.getElementById("btn-run").classList.remove("hidden");
-        },
-        up: () => {
-            if(State.path==="/") return;
-            let p = State.path.split("/").filter(x=>x); p.pop();
-            State.path = p.length ? "/"+p.join("/")+"/" : "/";
-            FS.scan();
-        }
-    };
-
-    const Viewer = {
-        show: (i) => {
-            const v = document.getElementById("visual"); v.innerHTML = "";
-            document.getElementById("lbl-view").innerText = "View: " + i.name;
-            if(i.type.includes("text") || i.name.match(/\.(txt|js|md)$/i)) {
-                let r=new FileReader();
-                r.onload=e=>{
-                    let t=document.createElement("textarea"); t.className="txt-view"; t.value=e.target.result; t.readOnly=true; v.appendChild(t);
-                };
-                r.readAsText(i.data);
-            } else v.innerHTML="<div style='color:#ccc; padding:20px'>Binary File</div>";
-        }
-    };
-
-    // --- BOOTER ---
-    async function boot() {
-        if(!window.V86Starter) return Term.err("Engine is NOT loaded. See Monitor.");
-        if(!State.os) return Term.err("No Disk Mounted.");
-        if(State.running) return;
-
-        document.getElementById("visual").innerHTML = "";
-        
-        let config = {
-            memory_size: 128*1024*1024,
-            vga_memory_size: 8*1024*1024,
-            screen_container: document.getElementById("visual"),
-            autostart: true
+    }),
+    get:(p)=>new Promise(r=>{
+        FS.db.transaction([C.ST],"readonly").objectStore(C.ST).get(p).onsuccess=e=>r(e.target.result);
+    }),
+    put:(f)=>{
+        let p=S.path+f.name;
+        let t=f.name.endsWith('.js')?"text/javascript":"bin";
+        let i={id:p,name:f.name,parent:S.path,type:t,data:f,size:f.size,date:new Date()};
+        FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).put(i).oncomplete=()=>{
+            Log("Write: "+f.name);
+            FS.scn();
+            if(f.name==="libv86.js") window.location.reload();
         };
-
-        // Determine if using local blob drivers or CDN defaults
-        Term.log("Resolving Drivers...");
-        
-        const getBlob = async (name) => {
-            let f = await FS.getFile("/"+name);
-            return f ? URL.createObjectURL(f.data) : null;
-        }
-
-        // Try local overrides
-        let w = await getBlob("v86.wasm");
-        let b = await getBlob("seabios.bin");
-        let v = await getBlob("vgabios.bin");
-
-        // Paths: Prefer Local Blob > CDN
-        config.wasm_path = w || "https://unpkg.com/v86@latest/build/v86.wasm";
-        config.bios = { url: b || "https://unpkg.com/v86@latest/bios/seabios.bin" };
-        config.vga_bios = { url: v || "https://unpkg.com/v86@latest/bios/vgabios.bin" };
-
-        Term.log("WASM Source: " + (w ? "Local" : "CDN"));
-
-        // OS
-        if(State.os.name.match(/\.iso$/i)) config.cdrom = { buffer: State.os.data };
-        else config.hda = { buffer: State.os.data };
-
-        try {
-            window.emulator = new V86Starter(config);
-            State.running = true;
-            document.getElementById("lbl-view").innerText = "Viewport [RUNNING]";
-            document.getElementById("indicator").className = "on";
-        } catch(e) { Term.err(e.message); }
-    }
-
-    const Term = {
-        log: t => { let d=document.createElement("div"); d.innerText="> "+t; document.getElementById("term-log").appendChild(d); },
-        err: t => { let d=document.createElement("div"); d.innerText="! "+t; d.style.color="#f00"; document.getElementById("term-log").appendChild(d); }
-    };
-
-    window.onload = () => {
-        // Events
-        document.getElementById("btn-imp").onclick=()=>document.getElementById("sys-file").click();
-        document.getElementById("sys-file").onchange=(e)=>{ Array.from(e.target.files).forEach(f=>FS.put(f)); e.target.value=""; };
-        document.getElementById("btn-mkdir").onclick=()=>{let n=prompt("Name:"); if(n)FS.mkdir(n);};
-        document.getElementById("btn-fmt").onclick=FS.format;
-        document.getElementById("btn-up").onclick=UI.up;
-        document.getElementById("btn-run").onclick=boot;
-        
-        // Console Parser
-        document.getElementById("term-in").onkeydown = (e) => {
-            if(e.key === "Enter") {
-                let v = e.target.value.trim();
-                let [c, arg] = v.split(" ");
-                if(c==="ls") FS.scan();
-                else if(c==="create" && arg) FS.create(arg);
-                else if(c==="mkdir" && arg) FS.mkdir(arg);
-                else if(c==="format") FS.format();
-                else Term.log(v);
-                e.target.value = "";
+    },
+    mkdir:(n)=>{
+        let p=S.path+n+"/";
+        let i={id:p,name:n,parent:S.path,type:"dir",size:0};
+        FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).put(i).onsuccess=()=>FS.scn();
+    },
+    del:(id)=>{
+        FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).delete(id).onsuccess=()=>FS.scn();
+    },
+    clr:()=>{
+        FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).clear().onsuccess=()=>window.location.reload();
+    },
+    create:(n)=>{
+        let b=new Blob(["New"],{type:"text/plain"});
+        let p=S.path+n;
+        let i={id:p,name:n,parent:S.path,type:"text/plain",data:b,size:3,date:new Date()};
+        FS.db.transaction([C.ST],"readwrite").objectStore(C.ST).put(i).onsuccess=()=>{Log("Created "+n);FS.scn();}
+    },
+    scn:()=>{
+        let l=document.getElementById("f-list");l.innerHTML="";
+        document.getElementById("path").innerText=S.path;
+        let tot=0;
+        let tx=FS.db.transaction([C.ST],"readonly");
+        tx.objectStore(C.ST).openCursor().onsuccess=e=>{
+            let c=e.target.result;
+            if(c){
+                let i=c.value;
+                tot+=i.size||0;
+                if(i.parent===S.path&&i.id!=="/")UI.add(i);
+                if(!S.os && i.name.match(/\.(iso|img)$/i)) UI.mnt(i);
+                c.continue();
+            } else {
+                document.getElementById("m-dsk").style.width=(tot/10e7)+"%";
             }
         };
+    }
+};
 
-        // CPU Pulse
-        setInterval(() => {
-            let r = State.running ? Math.random()*40+20 : 0;
-            document.getElementById("bar-cpu").style.width = r + "%";
-            document.getElementById("lbl-cpu").innerText = State.running?"RUN":"IDLE";
-            let d = new Date(); document.getElementById("clock").innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
-            document.getElementById("lbl-ram").innerText=(navigator.deviceMemory||4)+"GB";
-            document.getElementById("bar-ram").style.width="40%";
-        }, 1000);
+const UI={
+    add:(i)=>{
+        let el=document.createElement("li"); el.className="item";
+        let isD=i.type==="dir";
+        el.innerHTML=`<div class="ico ${isD?'d':'f'}"></div><span>${i.name}</span>`;
+        el.onclick=()=>{document.querySelectorAll(".sel").forEach(x=>x.classList.remove("sel")); el.classList.add("sel");};
+        el.ondblclick=()=>{isD?(S.path=i.id,FS.scn()):View(i);};
+        el.oncontextmenu=e=>{e.preventDefault(); if(confirm("Del?"))FS.del(i.id);}
+        document.getElementById("f-list").appendChild(el);
+    },
+    mnt:(i)=>{
+        S.os=i;
+        document.getElementById("m-dsk-stat").classList.add("ok");
+        document.getElementById("t-boot").innerText=i.name;
+        document.getElementById("b-run").classList.remove("hidden");
+    },
+    up:()=>{
+        if(S.path==="/")return;
+        let p=S.path.split("/").filter(x=>x); p.pop();
+        S.path=p.length?"/"+p.join("/")+"/":"/";
+        FS.scn();
+    }
+};
 
-        // Start
-        FS.init().then(() => monitorEngine());
+function View(i){
+    let v=document.getElementById("vis"); v.innerHTML="";
+    if(i.type.includes("text")||i.name.match(/\.(txt|js|md)$/i)){
+        let r=new FileReader();
+        r.onload=e=>{let t=document.createElement("textarea");t.className="txt";t.value=e.target.result;t.readOnly=true;v.appendChild(t);}
+        r.readAsText(i.data);
+    } else v.innerHTML="<div style='color:#ccc; padding:20px'>Binary Data</div>";
+}
+
+function Log(t){let d=document.createElement("div");d.innerText="> "+t;document.getElementById("log").appendChild(d);}
+
+window.onload=()=>{
+    document.getElementById("b-imp").onclick=()=>document.getElementById("up").click();
+    document.getElementById("up").onchange=e=>{Array.from(e.target.files).forEach(f=>FS.put(f)); e.target.value="";};
+    document.getElementById("b-md").onclick=()=>{let n=prompt("Name");if(n)FS.mkdir(n);};
+    document.getElementById("b-fmt").onclick=FS.clr;
+    document.getElementById("b-up").onclick=UI.up;
+    document.getElementById("b-run").onclick=powerOn;
+    document.getElementById("cli").onkeydown=e=>{
+        if(e.key==="Enter"){
+            let v=e.target.value.trim().split(" ");
+            let c=v[0]; let a=v[1];
+            if(c==="ls")FS.scn();
+            else if(c==="mkdir"&&a)FS.mkdir(a);
+            else if(c==="create"&&a)FS.create(a);
+            else if(c==="format")FS.clr();
+            else Log(e.target.value);
+            e.target.value="";
+        }
     };
+    
+    // UI Loop
+    setInterval(()=>{
+        let d=new Date();
+        document.getElementById("clock").innerText=d.getHours()+":"+d.getMinutes();
+        let r=S.run?Math.random()*60:0;
+        document.getElementById("m-cpu").style.width=r+"%";
+        document.getElementById("m-ram").style.width="35%";
+    },1000);
+
+    FS.init().then(()=>initEngine(FS));
+};
 
 })();
 </script>
