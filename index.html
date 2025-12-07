@@ -4,535 +4,549 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox v2000</title>
+    <title>Winbox Env [dev_mode]</title>
     
-    <!-- 1. JSZip Library (for unzipping) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
-        /* --- FLASH / UTILITY 2000 THEME --- */
+        /* --- THEME: UTILITY 2000 (SILVER & BLUE) --- */
         :root {
-            --bg-body: #666666;
-            --panel-bg: #ece9d8;
-            --panel-border: #999;
-            --header-grad-1: #3e3e3e;
-            --header-grad-2: #222222;
-            --text-main: #333;
-            --highlight: #316ac5;
+            --bg-root: #808080;
+            --panel-face: #f1f1f1;
+            --border-light: #fff;
+            --border-dark: #404040;
+            --highlight: #000080; /* Classic Blue */
+            --selection: #ffec8b;
         }
 
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
-            background: var(--bg-body);
-            font-family: 'Verdana', sans-serif;
+            background: var(--bg-root);
+            font-family: 'Tahoma', 'Verdana', sans-serif;
             font-size: 11px;
             overflow: hidden;
             display: flex; flex-direction: column;
-            user-select: none;
         }
 
-        #stage {
-            flex: 1; display: flex; padding: 4px; gap: 4px; box-sizing: border-box;
+        /* --- LAYOUT GRID --- */
+        #viewport {
+            flex: 1; display: flex; padding: 5px; gap: 5px;
+            box-sizing: border-box;
         }
-
-        /* --- PANEL STYLING --- */
-        .panel {
-            background: var(--panel-bg);
-            border: 1px solid #333;
-            box-shadow: inset 1px 1px 0px #fff;
+        
+        /* --- GENERIC WINDOW/PANEL --- */
+        .win-box {
             display: flex; flex-direction: column;
+            background: var(--panel-face);
+            border: 2px solid var(--panel-face);
+            border-top-color: var(--border-light);
+            border-left-color: var(--border-light);
+            border-right-color: var(--border-dark);
+            border-bottom-color: var(--border-dark);
         }
         
-        .panel-head {
-            background: linear-gradient(to bottom, var(--header-grad-1), var(--header-grad-2));
-            color: #ddd; padding: 3px 6px;
+        .win-header {
+            background: linear-gradient(90deg, #000080, #4169e1);
+            color: white; padding: 3px 6px;
             font-weight: bold; font-size: 10px;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid #000;
+            display: flex; justify-content: space-between; align-items: center;
+            height: 16px;
         }
 
-        .panel-body {
-            flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;
-            padding: 4px;
+        .win-content {
+            flex: 1; position: relative; overflow: hidden;
+            display: flex; flex-direction: column; padding: 2px;
         }
 
-        /* --- SIDEBAR --- */
-        .sidebar { width: 220px; display: flex; flex-direction: column; gap: 4px; }
+        /* --- LEFT SIDEBAR (Stats + Files) --- */
+        aside { width: 240px; display: flex; flex-direction: column; gap: 5px; }
+
+        .meter-group { margin-bottom: 8px; border: 1px dotted #999; padding: 4px; background: #fff; }
+        .meter-bar { height: 10px; background: #ddd; border: 1px inset; position: relative; margin-top:2px; }
+        .meter-fill { height: 100%; width: 0%; transition: width 0.3s; }
         
-        .btn-row { display: flex; gap: 2px; margin-top: 5px; justify-content: flex-end; }
+        .file-browser {
+            flex: 1; background: #fff; border: 2px inset; 
+            overflow-y: scroll; list-style: none; padding: 0; margin: 0;
+            cursor: default;
+        }
+        .file-browser li {
+            padding: 2px 4px; border-bottom: 1px dotted #eee; 
+            display: flex; justify-content: space-between;
+        }
+        .file-browser li:hover { background: var(--highlight); color: #fff; }
+        
+        .toolbar { display: flex; gap: 2px; margin-top: 5px; justify-content: center; }
         button {
-            background: linear-gradient(#f9f9f9, #e3e3e3);
-            border: 1px solid #707070; padding: 3px 8px; cursor: pointer; font-size: 10px;
+            border: 1pxoutset; background: #e4e4e4; font-size: 9px; cursor: pointer; padding: 2px 6px;
         }
-        button:active { background: #ccc; box-shadow: inset 1px 1px 2px #555; }
-        
-        /* Stats Meters */
-        .meter-container { background: #333; height: 10px; border: 1px inset; margin-bottom: 2px; width: 100%; }
-        .meter-fill { height: 100%; width: 0%; transition: width 0.2s; }
-        .stat-label { font-size: 9px; color: #555; margin-bottom: 1px; display: flex; justify-content: space-between; }
+        button:active { border-style: inset; padding: 3px 5px 1px 7px; } /* Pressed effect */
 
-        /* File Tree */
-        ul#file-list {
-            list-style: none; padding: 0; margin: 0; background: #fff;
-            border: 1px inset; flex: 1; overflow-y: auto; font-family: 'Tahoma', sans-serif;
-        }
-        ul#file-list li {
-            padding: 2px 4px; cursor: pointer; display: flex; justify-content: space-between;
-            border-bottom: 1px dashed #eee;
-        }
-        ul#file-list li:hover { background: var(--highlight); color: white; }
-
-        /* --- MAIN VIEW --- */
-        .main-col { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        /* --- MAIN AREA (Viewer + Term) --- */
+        main { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
         
-        #viewer-frame {
-            flex: 2; background: #999; border: 1px inset; 
-            display: flex; align-items: center; justify-content: center; overflow: hidden;
-            background-image: repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #f0f0f0 25%, #f0f0f0 75%, #ccc 75%, #ccc);
-            background-position: 0 0, 10px 10px; background-size: 20px 20px;
+        /* VIEWER/EDITOR AREA */
+        #display-port {
+            flex: 1; background: #888; border: 2px inset;
+            display: flex; flex-direction: column; overflow: hidden;
+            position: relative;
+        }
+        /* When rendering standard content */
+        .render-content { 
+            width: 100%; height: 100%; overflow: auto; background: white; border: none; 
+            display: block;
+        }
+        /* Text Editor specific */
+        textarea.editor-mode {
+            width: 100%; height: 100%; box-sizing: border-box; border: none; resize: none;
+            font-family: 'Courier New', monospace; font-size: 13px; background: #1a1a1a; color: #0f0;
+            padding: 5px; outline: none;
+        }
+        .editor-bar {
+            height: 24px; background: #ccc; border-bottom: 1px solid #999;
+            display: flex; align-items: center; padding: 0 5px; gap: 5px;
         }
 
-        /* --- CONSOLE --- */
-        #console-container {
-            flex: 1; background: #1a1a1a; color: #00ff00;
-            border: 1px inset #000; font-family: 'Courier New', monospace;
-            padding: 5px; overflow: hidden; display: flex; flex-direction: column;
+        /* TERMINAL */
+        .term-wrap {
+            flex: 1; min-height: 150px; max-height: 300px;
+            background: #000; border: 2px inset; 
+            padding: 4px; font-family: 'Consolas', monospace; color: #ccc; 
+            overflow: hidden; display: flex; flex-direction: column;
         }
-        #term-history { flex: 1; overflow-y: scroll; white-space: pre-wrap; font-size: 11px; }
-        .msg-sys { color: #aaa; }
-        .msg-err { color: #ff5555; }
-        .msg-io  { color: #ffff55; }
+        #term-log { flex: 1; overflow-y: scroll; white-space: pre-wrap; font-size: 12px; }
+        .cl-green { color: lime; } .cl-yellow { color: yellow; } .cl-red { color: #f55; }
         
-        #term-input-row { display: flex; border-top: 1px solid #444; margin-top: 4px; padding-top: 2px; }
+        .input-line { display: flex; margin-top: 2px; border-top: 1px solid #333; padding-top:2px; }
         #term-input { 
             flex: 1; background: transparent; color: #fff; border: none; 
-            font-family: inherit; font-size: 12px; outline: none; margin-left: 5px; 
+            outline: none; font-family: inherit; margin-left: 5px;
         }
 
     </style>
 </head>
 <body>
 
-<div id="stage">
+<div id="viewport">
     
-    <!-- LEFT PANEL: RESOURCES -->
-    <div class="sidebar">
-        <!-- SYSTEM STATS -->
-        <div class="panel" style="height: auto;">
-            <div class="panel-head">SYSTEM RESOURCE MON</div>
-            <div class="panel-body">
-                <div class="stat-label"><span>MEM LOAD</span><span id="txt-ram">---</span></div>
-                <div class="meter-container"><div id="bar-ram" class="meter-fill" style="background:#0c0;"></div></div>
+    <!-- LEFT PANE -->
+    <aside>
+        <div class="win-box" style="height: 100%;">
+            <div class="win-header">
+                <span>SYSTEM & FILES</span>
+                <span>x</span>
+            </div>
+            <div class="win-content">
+                <!-- STATS -->
+                <div class="meter-group">
+                    <div style="display:flex; justify-content:space-between"><span>RAM (Virtual)</span><span id="st-ram">---</span></div>
+                    <div class="meter-bar"><div id="br-ram" class="meter-fill" style="background:orange;"></div></div>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-top:4px;"><span>STORAGE (10GB)</span><span id="st-dsk">0%</span></div>
+                    <div class="meter-bar"><div id="br-dsk" class="meter-fill" style="background:navy;"></div></div>
+                </div>
 
-                <div class="stat-label"><span>CPU THREADS</span><span id="txt-cpu">---</span></div>
-                <div class="meter-container"><div id="bar-cpu" class="meter-fill" style="background:#cc0;"></div></div>
-
-                <div class="stat-label"><span>DISK USAGE (10GB)</span><span id="txt-disk">calc...</span></div>
-                <div class="meter-container"><div id="bar-disk" class="meter-fill" style="background:#00f;"></div></div>
+                <!-- ACTIONS -->
+                <div class="toolbar" style="margin-bottom:4px;">
+                    <button id="btn-create" onclick="termInput('create untitled.txt')">NEW</button>
+                    <button id="btn-imp" onclick="io.uiUpload()">UPLOAD</button>
+                    <button id="btn-fmt" onclick="termInput('format')" style="color:#a00">FORMAT</button>
+                    <input type="file" id="sys-up-inv" multiple style="display:none">
+                </div>
                 
-                <div class="btn-row">
-                    <button id="btn-fmt" style="color:#a00;">FORMAT DSK</button>
-                    <button id="btn-up">IMPORT DATA</button>
-                    <input type="file" id="inp-file" multiple style="display:none;">
-                </div>
+                <!-- LIST -->
+                <ul id="file-list" class="file-browser"></ul>
             </div>
         </div>
+    </aside>
+
+    <!-- RIGHT PANE -->
+    <main>
         
-        <!-- FILE BROWSER -->
-        <div class="panel" style="flex: 1;">
-            <div class="panel-head">LOCAL INDEX [DRIVE A]</div>
-            <div class="panel-body">
-                <ul id="file-list">
-                    <!-- JS Populates this -->
-                    <li style="color:#666; font-style:italic; padding:5px;">Initializing DB...</li>
-                </ul>
+        <!-- VISUAL VIEWER / EDITOR -->
+        <div class="win-box" style="flex:2;">
+            <div class="win-header">
+                <span>ACTIVE DISPLAY</span>
+                <span id="disp-fn">idle</span>
             </div>
-        </div>
-    </div>
-
-    <!-- MAIN PANEL -->
-    <div class="main-col">
-        <!-- VIEWER -->
-        <div class="panel" style="flex: 2;">
-            <div class="panel-head">VIEWPORT RENDERER</div>
-            <div class="panel-body" style="padding:0; background:#333;">
-                <div id="viewer-frame">
-                    <span style="color:#555; font-weight:bold;">NO SIGNAL</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- CONSOLE -->
-        <div class="panel" style="flex: 1;">
-            <div class="panel-head">SHELL [ROOT ACCESS]</div>
-            <div class="panel-body" style="background: #111; padding: 2px;">
-                <div id="console-container">
-                    <div id="term-history">Winbox Kernel v2.5...<br>Mounting IndexedDB Volume...<br></div>
-                    <div id="term-input-row">
-                        <span>ADMIN@WINBOX:~$</span>
-                        <input type="text" id="term-input" autocomplete="off" autofocus>
+            <div class="win-content" style="background:#808080; padding:0;">
+                <div id="display-port">
+                    <div style="display:grid; place-items:center; height:100%; color:#ddd; font-weight:bold; text-shadow:1px 1px 0 #000;">
+                        NO ACTIVE PROCESS
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- CLI -->
+        <div class="win-box" style="height: auto;">
+            <div class="win-header">CMD.EXE</div>
+            <div class="term-wrap">
+                <div id="term-log">Winbox [Version 3.1.2000]<br>(C) Corp.<br><br>Type "help" for new commands.<br></div>
+                <div class="input-line">
+                    <span class="cl-green">C:\USERS\ADMIN&gt;</span>
+                    <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+                </div>
+            </div>
+        </div>
+
+    </main>
 
 </div>
 
-<!-- APPLICATION LOGIC -->
 <script>
 /** 
- *  WINBOX SINGLE-FILE CLIENT
- *  (C) Open Source - Local Storage + Zip Logic + SimStats
+ * WINBOX V3 KERNEL
+ * Includes Editor, Runner, Downloader
  */
 
-/* 1. GLOBALS (Defined strictly to avoid ref errors) */
-window.DB_CFG = {
-    NAME: 'WINBOX_SYSTEM',
-    STORE: 'PARTITION_0',
-    LIMIT: 10737418240 // 10 GB
+// Global Utils
+const $ = (id) => document.getElementById(id);
+const termInput = (txt) => { const i = $('term-input'); i.value = txt; i.focus(); };
+
+// Constants
+const SYS = {
+    DB: 'WINBOX_V3',
+    STORE: 'DISK_0',
+    LIMIT: 10 * 1024 * 1024 * 1024
 };
 
-window.term = null;
-window.io = null;
+// ----------------------------------
+// 1. TERMINAL SYSTEM
+// ----------------------------------
+const term = {
+    logBox: $('term-log'),
+    input: $('term-input'),
 
-/* 2. TERMINAL MODULE */
-const TermSys = {
-    domBox: document.getElementById('term-history'),
-    domInp: document.getElementById('term-input'),
-    
     init: function() {
-        this.domInp.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.execute();
+        this.input.addEventListener('keydown', e => {
+            if(e.key === 'Enter') this.process();
         });
-        window.addEventListener('click', () => {
-             // Keep focus on terminal unless selecting text
-             if(window.getSelection().toString() === '') this.domInp.focus();
-        });
-        this.log("Terminal Interface Ready.", "sys");
+        window.onclick = () => { if(window.getSelection().toString()==='') this.input.focus(); };
     },
 
-    log: function(msg, type="") {
-        const time = new Date().toLocaleTimeString('en-US', {hour12:false});
-        const line = document.createElement('div');
-        
-        if (type === "err") line.className = "msg-err";
-        else if (type === "io") line.className = "msg-io";
-        else line.className = "msg-sys";
-        
-        line.textContent = `[${time}] ${msg}`;
-        this.domBox.appendChild(line);
-        this.domBox.scrollTop = this.domBox.scrollHeight;
+    print: function(txt, cssClass='cl-green') {
+        const ln = document.createElement('div');
+        ln.innerHTML = txt;
+        ln.className = cssClass;
+        this.logBox.appendChild(ln);
+        this.logBox.scrollTop = this.logBox.scrollHeight;
     },
 
-    execute: function() {
-        const val = this.domInp.value.trim();
-        if (!val) return;
+    process: function() {
+        const val = this.input.value.trim();
+        if(!val) return;
+        this.input.value = '';
         
-        this.log(`> ${val}`);
-        this.domInp.value = "";
-        
-        const args = val.split(' ');
-        const cmd = args[0].toLowerCase();
+        this.print(`C:\\> ${val}`, 'white');
+        const [cmd, ...args] = val.split(' ');
+        const target = args.join(' '); // Rejoin remaining args as filename usually
 
-        // Basic Shell Router
-        if (cmd === 'clear' || cmd === 'cls') {
-            this.domBox.innerHTML = "";
-        }
-        else if (cmd === 'help') {
-            this.log("CMDS: ls, rm [file], view [file], format, import, sync", "io");
-        }
-        else if (cmd === 'ls') {
-            io.listDir();
-        }
-        else if (cmd === 'format') {
-            io.formatDisk();
-        }
-        else if (cmd === 'import') {
-            document.getElementById('inp-file').click();
-        }
-        else if (cmd === 'rm') {
-            if(args[1]) io.deleteFile(args[1]);
-            else this.log("Missing filename.");
-        }
-        else if (cmd === 'view') {
-            if(args[1]) io.loadFile(args[1]);
-            else this.log("Missing filename.");
-        }
-        else {
-            this.log("Unknown Command.", "err");
+        // Command Switch
+        switch(cmd.toLowerCase()) {
+            case 'help':
+                this.print("FILESYSTEM CMDs:", "cl-yellow");
+                this.print("  ls / dir       : List files");
+                this.print("  create [file]  : Create empty file");
+                this.print("  edit [file]    : Open Text Editor");
+                this.print("  view [file]    : View Image/Text (Read Only)");
+                this.print("  run [file]     : Execute HTML/Script");
+                this.print("  download [file]: Save to real computer");
+                this.print("  rm [file]      : Delete file");
+                this.print("  upload         : Import file prompt");
+                this.print("  format         : Wipe Disk");
+                break;
+            case 'cls':
+            case 'clear':
+                this.logBox.innerHTML = '';
+                break;
+            case 'ls':
+            case 'dir':
+                io.list();
+                break;
+            case 'upload':
+                io.uiUpload();
+                break;
+            case 'create':
+            case 'touch':
+            case 'mkfile':
+                if(!target) return this.print("Error: Specify filename.", "cl-red");
+                io.create(target);
+                break;
+            case 'rm':
+            case 'del':
+                if(!target) return this.print("Error: Specify filename.", "cl-red");
+                io.delete(target);
+                break;
+            case 'format':
+                io.format();
+                break;
+            case 'run':
+            case 'view':
+            case 'open':
+                if(!target) return this.print("Error: Specify filename.", "cl-red");
+                io.load(target, 'view');
+                break;
+            case 'edit':
+            case 'nano':
+                if(!target) return this.print("Error: Specify filename.", "cl-red");
+                io.load(target, 'edit');
+                break;
+            case 'download':
+            case 'dl':
+                if(!target) return this.print("Error: Specify filename.", "cl-red");
+                io.download(target);
+                break;
+            default:
+                this.print(`'${cmd}' is not recognized as a command.`, "cl-red");
         }
     }
 };
 
-/* 3. IO / FILESYSTEM MODULE */
-const IoSys = {
+// ----------------------------------
+// 2. FILESYSTEM (INDEXED DB)
+// ----------------------------------
+const io = {
     db: null,
 
-    init: async function() {
-        if (!window.indexedDB) return term.log("CRITICAL: IndexedDB missing!", "err");
-        
-        const req = indexedDB.open(DB_CFG.NAME, 2);
-        
-        req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(DB_CFG.STORE)) {
-                db.createObjectStore(DB_CFG.STORE, { keyPath: "name" });
-            }
+    boot: function() {
+        const r = indexedDB.open(SYS.DB, 3);
+        r.onupgradeneeded = e => {
+            const d = e.target.result;
+            if(!d.objectStoreNames.contains(SYS.STORE)) d.createObjectStore(SYS.STORE, { keyPath: 'name' });
         };
-
-        req.onsuccess = (e) => {
+        r.onsuccess = e => {
             this.db = e.target.result;
-            this.listDir(); // initial scan
-            term.log("Filesystem Mounted (Mode: R/W).", "sys");
+            this.list();
+            stats.loop();
+            // Bind upload
+            $('sys-up-inv').onchange = (ev) => this.handleFiles(ev.target.files);
         };
-
-        req.onerror = () => term.log("DB Access Denied/Blocked.", "err");
-        
-        this.attachButtonListeners();
+        r.onerror = () => term.print("DB IO ERROR. Privacy Mode blocks storage?", "cl-red");
     },
 
-    attachButtonListeners: function() {
-        document.getElementById('btn-up').addEventListener('click', () => {
-             document.getElementById('inp-file').click();
-        });
+    // --- WRITE OPS ---
+    save: function(name, blob, silent=false) {
+        const tx = this.db.transaction([SYS.STORE], 'readwrite');
+        const meta = { name: name, type: blob.type, size: blob.size, data: blob, date: new Date() };
         
-        document.getElementById('btn-fmt').addEventListener('click', () => {
-             this.formatDisk();
-        });
-
-        document.getElementById('inp-file').addEventListener('change', (e) => {
-             this.handleIncomingFiles(e.target.files);
-             e.target.value = ''; // reset
-        });
-    },
-
-    handleIncomingFiles: function(files) {
-        if (files.length === 0) return;
-        Array.from(files).forEach(f => {
-            term.log(`STREAM: Receiving ${f.name} (${this.fmtSize(f.size)})`, "io");
-            
-            // Check for Zip
-            if (f.name.endsWith('.zip')) {
-                // Read into buffer to parse
-                const r = new FileReader();
-                r.onload = (evt) => this.processZip(f.name, evt.target.result);
-                r.readAsArrayBuffer(f);
-            } else {
-                // Direct Save
-                this.saveToDB(f.name, f.type, f.size, f);
-            }
-        });
-    },
-
-    saveToDB: function(name, type, size, blob) {
-        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
-        const store = tx.objectStore(DB_CFG.STORE);
-        
-        const fileRecord = {
-            name: name,
-            type: type || 'application/octet-stream',
-            size: size,
-            data: blob,
-            modified: Date.now()
-        };
-        
-        store.put(fileRecord);
-        
+        tx.objectStore(SYS.STORE).put(meta);
         tx.oncomplete = () => {
-            // Quiet log to not spam on zips
-            this.listDir();
+            if(!silent) term.print(`Written: ${name} (${stats.fmt(blob.size)})`);
+            this.list();
         };
-        tx.onerror = () => term.log(`Write Error: ${name}`, "err");
+        tx.onerror = () => term.print(`Write failed: ${name}`, 'cl-red');
     },
 
-    // ZIP LOGIC using JSZip
-    processZip: function(filename, buffer) {
-        term.log(`PKZIP: Detected archive signature for ${filename}`, "sys");
+    create: function(name) {
+        // Create empty text file
+        const b = new Blob([""], {type: "text/plain"});
+        this.save(name, b);
+    },
+
+    delete: function(name) {
+        const tx = this.db.transaction([SYS.STORE], 'readwrite');
+        tx.objectStore(SYS.STORE).delete(name);
+        tx.oncomplete = () => { term.print(`Deleted: ${name}`); this.list(); };
+    },
+
+    format: function() {
+        if(!confirm("WIPE ALL DATA?")) return;
+        const tx = this.db.transaction([SYS.STORE], 'readwrite');
+        tx.objectStore(SYS.STORE).clear();
+        tx.oncomplete = () => { term.print("Disk formatted."); this.list(); };
+    },
+
+    // --- READ OPS ---
+    list: function() {
+        const ul = $('file-list'); ul.innerHTML = '';
+        let total = 0;
         
-        if (!confirm(`Unpack archive "${filename}"? \nClick OK to extract contents.\nClick Cancel to save as a regular zip file.`)) {
-             // User chose to keep as ZIP
-             this.saveToDB(filename, 'application/zip', buffer.byteLength, new Blob([buffer]));
-             return;
-        }
-
-        term.log("PKZIP: Deflating streams...", "io");
-        
-        if (!window.JSZip) return term.log("ERR: JSZip Library not loaded.", "err");
-
-        new JSZip().loadAsync(buffer).then(zip => {
-            let pList = [];
-            zip.forEach((path, entry) => {
-                if (entry.dir) return; // Skip folder items
-                const p = entry.async('blob').then(blob => {
-                     // Guess MIME
-                     let mime = 'text/plain';
-                     if (entry.name.match(/\.(jpg|png|gif|jpeg)$/i)) mime = 'image/png';
-                     
-                     term.log(`EXTRACT: ${entry.name}`, "sys");
-                     this.saveToDB(entry.name, mime, blob.size, blob);
-                });
-                pList.push(p);
-            });
-            Promise.all(pList).then(() => term.log("Batch extraction complete.", "sys"));
-        }).catch(err => term.log(`Corrupt Archive: ${err}`, "err"));
-    },
-
-    deleteFile: function(name) {
-        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
-        tx.objectStore(DB_CFG.STORE).delete(name);
-        tx.oncomplete = () => {
-            term.log(`Deleted ${name}`);
-            this.listDir();
-        };
-    },
-
-    formatDisk: function() {
-        if (!confirm("CRITICAL WARNING: Wipe all data?")) return;
-        const tx = this.db.transaction([DB_CFG.STORE], "readwrite");
-        tx.objectStore(DB_CFG.STORE).clear();
-        tx.oncomplete = () => {
-            term.log("Filesystem formatted (0% Used).", "sys");
-            this.listDir();
-        };
-    },
-
-    loadFile: function(name) {
-        const tx = this.db.transaction([DB_CFG.STORE], "readonly");
-        const req = tx.objectStore(DB_CFG.STORE).get(name);
-        req.onsuccess = (e) => {
-            const res = e.target.result;
-            if (res) Viewer.display(res);
-            else term.log(`File ${name} not found.`, "err");
-        };
-    },
-
-    listDir: function() {
-        const ul = document.getElementById('file-list');
-        ul.innerHTML = "";
-        
-        const tx = this.db.transaction([DB_CFG.STORE], "readonly");
-        const store = tx.objectStore(DB_CFG.STORE);
-        let totalBytes = 0;
-        
-        store.openCursor().onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) {
-                const f = cursor.value;
-                totalBytes += f.size;
-                
+        const tx = this.db.transaction([SYS.STORE], 'readonly');
+        tx.objectStore(SYS.STORE).openCursor().onsuccess = e => {
+            const c = e.target.result;
+            if(c) {
+                total += c.value.size;
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${f.name}</span> <span style="font-size:10px; color:#666">${this.fmtSize(f.size)}</span>`;
-                li.onclick = () => this.loadFile(f.name);
-                
+                li.innerHTML = `<span>${c.value.name}</span><small>${stats.fmt(c.value.size)}</small>`;
+                li.onclick = () => termInput(`view ${c.value.name}`); // Shortcut
                 ul.appendChild(li);
-                cursor.continue();
+                c.continue();
             } else {
-                // Done
-                this.updateDiskMeter(totalBytes);
+                stats.updDisk(total);
             }
         };
     },
 
-    updateDiskMeter: function(used) {
-        const pct = (used / DB_CFG.LIMIT) * 100;
-        document.getElementById('bar-disk').style.width = pct + "%";
-        document.getElementById('txt-disk').innerText = this.fmtSize(used) + " / 10 GB";
-        
-        if(pct > 80) term.log("Warning: Disk capacity critical.", "err");
+    load: function(name, mode) {
+        const tx = this.db.transaction([SYS.STORE], 'readonly');
+        tx.objectStore(SYS.STORE).get(name).onsuccess = e => {
+            if(e.target.result) ui.render(e.target.result, mode);
+            else term.print(`File '${name}' not found.`, 'cl-red');
+        };
     },
 
-    fmtSize: function(bytes) {
-        if(bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    download: function(name) {
+        const tx = this.db.transaction([SYS.STORE], 'readonly');
+        tx.objectStore(SYS.STORE).get(name).onsuccess = e => {
+            const res = e.target.result;
+            if(res) {
+                const url = URL.createObjectURL(res.data);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                term.print(`Downloading: ${name}...`, 'cl-green');
+            } else {
+                term.print("File not found.", "cl-red");
+            }
+        };
+    },
+
+    // --- UPLOAD HANDLER ---
+    uiUpload: () => $('sys-up-inv').click(),
+
+    handleFiles: function(list) {
+        if(!list.length) return;
+        Array.from(list).forEach(f => {
+            // ZIP CHECK
+            if(f.name.endsWith('.zip') && window.JSZip) {
+                if(confirm(`Unpack ${f.name}?`)) {
+                    new JSZip().loadAsync(f).then(zip => {
+                        zip.forEach((p, ent) => {
+                            if(!ent.dir) ent.async('blob').then(b => this.save(ent.name, b));
+                        });
+                        term.print("Batch unzip complete.", "cl-green");
+                    });
+                    return; // Don't save the raw zip
+                }
+            }
+            this.save(f.name, f);
+        });
+        $('sys-up-inv').value = ""; // Reset
     }
 };
 
-/* 4. VISUAL RENDERER */
-const Viewer = {
-    box: document.getElementById('viewer-frame'),
-    
-    display: function(fileRecord) {
-        this.box.innerHTML = "";
-        this.box.style.background = "#fff";
-        this.box.style.backgroundImage = "none";
-        
-        term.log(`RENDER: Decoding ${fileRecord.name}...`, "sys");
-        
-        const type = fileRecord.type;
-        const blob = fileRecord.data;
+// ----------------------------------
+// 3. UI RENDERER & EDITOR
+// ----------------------------------
+const ui = {
+    port: $('display-port'),
+    lbl: $('disp-fn'),
 
-        // Image
-        if (type.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(blob);
-            img.style.maxWidth = '100%';
-            img.style.maxHeight = '100%';
-            img.style.objectFit = 'contain';
-            this.box.appendChild(img);
+    render: function(file, mode) {
+        this.port.innerHTML = '';
+        this.lbl.innerText = file.name + (mode==='edit'?' [EDIT]':' [READ]');
+
+        // EDITOR MODE
+        if(mode === 'edit') {
+            // Text only check
+            if(!file.type.startsWith('text') && !file.name.match(/\.(js|txt|html|css|json|md|log)$/)) {
+                return term.print("Cannot edit binary file.", "cl-red");
+            }
+
+            // Reader
+            const r = new FileReader();
+            r.onload = e => {
+                const str = e.target.result;
+                
+                // Build Editor Interface
+                const bar = document.createElement('div');
+                bar.className = 'editor-bar';
+                const saveBtn = document.createElement('button');
+                saveBtn.innerText = "SAVE CHANGES";
+                
+                const area = document.createElement('textarea');
+                area.className = 'editor-mode';
+                area.value = str;
+
+                // Save Handler
+                saveBtn.onclick = () => {
+                    const newBlob = new Blob([area.value], {type: 'text/plain'});
+                    io.save(file.name, newBlob, true);
+                    term.print(`Saved changes to ${file.name}`, 'cl-green');
+                };
+
+                bar.appendChild(saveBtn);
+                bar.appendChild(document.createTextNode(" (CTRL+S unavailable, click Save)"));
+                this.port.appendChild(bar);
+                this.port.appendChild(area);
+            };
+            r.readAsText(file.data);
+            return;
         }
-        // HTML / Code / Text
-        else if (type.includes('text') || fileRecord.name.match(/\.(html|css|js|json|md)$/i)) {
+
+        // VIEW/RUN MODE
+        if(file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file.data);
+            img.style.cssText = "max-width:100%; max-height:100%; object-fit:contain; margin:auto;";
+            this.port.appendChild(img);
+        }
+        else if(file.name.toLowerCase().endsWith('.html') || file.type === 'text/html') {
+             // Safe Render in Sandbox Iframe
              const r = new FileReader();
-             r.onload = (e) => {
-                 // Check if it's HTML, to render safer via srcdoc if possible
-                 if(fileRecord.name.endsWith('.html')) {
-                    const frame = document.createElement('iframe');
-                    frame.style.width = '100%'; frame.style.height = '100%'; frame.style.border = '0';
-                    frame.srcdoc = e.target.result;
-                    this.box.appendChild(frame);
-                 } else {
-                    const pre = document.createElement('pre');
-                    pre.style.margin = 0; pre.style.padding = '10px'; pre.style.width='100%'; 
-                    pre.style.height='100%'; pre.style.overflow='auto';
-                    pre.textContent = e.target.result;
-                    this.box.appendChild(pre);
-                 }
+             r.onload = e => {
+                 const ifr = document.createElement('iframe');
+                 ifr.className = 'render-content';
+                 ifr.srcdoc = e.target.result; // "Running" the HTML
+                 ifr.sandbox = "allow-scripts"; // allow JS but restrict external
+                 this.port.appendChild(ifr);
+                 term.print("Executed HTML document.", "cl-green");
              };
-             r.readAsText(blob);
+             r.readAsText(file.data);
+        }
+        else if(file.type.startsWith('text/') || file.name.match(/\.(txt|md|js|css|json)$/)) {
+            // Read-Only View
+            const r = new FileReader();
+            r.onload = e => {
+                 const pre = document.createElement('pre');
+                 pre.className = 'render-content';
+                 pre.style.padding = '10px';
+                 pre.textContent = e.target.result;
+                 this.port.appendChild(pre);
+            };
+            r.readAsText(file.data);
         }
         else {
-            this.box.innerHTML = `<div style="text-align:center; padding:20px;">
-                <b>Binary Data</b><br>${IoSys.fmtSize(fileRecord.size)}<br><small>${fileRecord.type}</small>
-            </div>`;
+             this.port.innerHTML = "<div style='margin:auto;color:#333'>BINARY FILE (Download to view)</div>";
         }
     }
 };
 
-/* 5. STATS SIMULATION */
-function initStats() {
-    // RAM
-    const ram = (navigator.deviceMemory || 8); 
-    document.getElementById('txt-ram').innerText = ram + " GB Alloc";
-    document.getElementById('bar-ram').style.width = "40%";
-
-    // CPU
-    const cores = (navigator.hardwareConcurrency || 4);
-    document.getElementById('txt-cpu').innerText = cores + " Cores";
-    
-    setInterval(() => {
-        // Random flutter for effect
-        const base = Math.random() * 20;
-        const spike = Math.random() > 0.9 ? 30 : 0;
-        const total = 20 + base + spike;
-        document.getElementById('bar-cpu').style.width = total + "%";
-    }, 1500);
-}
-
-/* BOOT SEQUENCE */
-window.onload = function() {
-    // Publish to window for debugging if needed
-    window.term = TermSys;
-    window.io = IoSys;
-
-    TermSys.init();
-    IoSys.init();
-    initStats();
+// ----------------------------------
+// 4. SYSTEM STATS
+// ----------------------------------
+const stats = {
+    loop: function() {
+        $('st-ram').innerText = (navigator.deviceMemory||8) + "GB";
+        setInterval(() => {
+            // Fake fluctuating CPU load
+            let h = new Date();
+            let n = (h.getSeconds() % 10) * 10 + Math.random()*20;
+            $('br-ram').style.width = n + "%";
+        }, 1000);
+    },
+    updDisk: function(used) {
+        const p = (used/SYS.LIMIT)*100;
+        $('br-dsk').style.width = p + "%";
+        $('st-dsk').innerText = this.fmt(used);
+    },
+    fmt: function(b) {
+        if(b<1024) return b+"B";
+        if(b<1024*1024) return (b/1024).toFixed(1)+"KB";
+        return (b/(1024*1024)).toFixed(1)+"MB";
+    }
 };
 
+// BOOT
+window.onload = () => {
+    term.init();
+    io.boot();
+};
 </script>
 </body>
 </html>
