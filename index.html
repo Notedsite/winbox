@@ -1,314 +1,347 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WINBOX</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: *;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winbox Env</title>
     <link rel="stylesheet" href="https://unpkg.com/98.css">
     <style>
-        body { background: #008080; margin: 0; height: 100vh; font-family: 'Pixelated MS Sans Serif', Arial; display: flex; gap: 8px; padding: 6px; box-sizing: border-box; overflow: hidden; }
-        .column { display: flex; flex-direction: column; gap: 6px; }
-        .sidebar { width: 220px; flex-shrink: 0; }
-        .main { flex-grow: 1; }
-        .window { height: 100%; display: flex; flex-direction: column; }
-        .window-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        /* BASE & LAYOUT */
+        html, body {
+            height: 100%; margin: 0; padding: 0;
+            background: #008080; 
+            font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+            overflow: hidden;
+            display: flex; gap: 6px; padding: 6px;
+            box-sizing: border-box;
+        }
+
+        .sidebar { width: 200px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+        .main { flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         
-        /* Console */
-        #term-history { background: #000; color: #0f0; flex: 1; overflow-y: scroll; padding: 4px; font-family: monospace; white-space: pre-wrap; font-size: 13px; }
-        #term-input-row { display: flex; background: #000; color: #0f0; padding: 2px; }
-        #term-input { background: transparent; border: none; color: #0f0; font-family: monospace; flex: 1; outline: none; }
-        
-        /* File List */
-        #file-ui-list { list-style: none; padding: 0; margin: 0; background: #fff; border: inset 2px; flex: 1; overflow-y: auto; cursor: pointer; }
-        #file-ui-list li { padding: 2px; border-bottom: 1px dotted #ccc; user-select: none; }
-        #file-ui-list li:hover { background: #000080; color: #fff; }
-        
-        /* Storage Bar */
-        #quota-box { border: 1px inset; height: 16px; background: #ccc; position: relative; margin: 5px 0; }
-        #quota-bar { height: 100%; background: #000080; width: 0%; }
-        
-        /* Viewer */
-        #viewer-frame { width: 100%; height: 100%; border: inset 2px; background: #fff; display: block; }
-        
-        button { cursor: pointer; }
+        /* WINDOW COMPONENTS */
+        .window { display: flex; flex-direction: column; height: 100%; box-shadow: none; }
+        .window.fixed { flex-grow: 0; flex-basis: auto; height: auto; }
+        .window.flex { flex: 1; min-height: 0; } /* min-height fixes overflow issues in flex children */
+        .window-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 4px; }
+
+        /* UI ELEMENTS */
+        ul.file-list {
+            list-style: none; padding: 0; margin: 0;
+            background: #fff; border: 2px inset; flex: 1;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+        ul.file-list li {
+            padding: 2px 4px; cursor: pointer; border-bottom: 1px dotted #ddd;
+            display: flex; justify-content: space-between;
+        }
+        ul.file-list li:hover { background: #000080; color: #fff; }
+
+        .progress-border { border: 1px inset; background: #c0c0c0; height: 16px; position: relative; }
+        .progress-bar { height: 100%; background: #000080; width: 0%; transition: width 0.3s; }
+
+        /* TERMINAL */
+        #term-log {
+            flex: 1; background: #000; color: lime;
+            font-family: 'Courier New', monospace; font-size: 12px;
+            overflow-y: scroll; white-space: pre-wrap; padding: 4px;
+            border: 2px inset;
+        }
+        #term-input-line { display: flex; background: #000; border: 2px inset; border-top: 0; padding: 2px; }
+        #term-prompt { color: lime; font-family: 'Courier New', monospace; margin-right: 5px; font-weight: bold; }
+        #term-cmd { flex: 1; background: transparent; border: none; color: lime; outline: none; font-family: 'Courier New', monospace; }
+
+        /* PREVIEW AREA */
+        #preview-stage {
+            flex: 1; background: #fff; border: 2px inset;
+            overflow: auto; position: relative;
+            display: flex; align-items: center; justify-content: center;
+        }
+        /* Specific content renderers */
+        #preview-stage img { max-width: 100%; max-height: 100%; }
+        #preview-stage pre { 
+            margin: 0; width: 100%; height: 100%; 
+            overflow: auto; text-align: left; background: #fff; padding: 5px; 
+            font-family: 'Courier New', monospace; color: black;
+        }
+        #preview-stage iframe { width: 100%; height: 100%; border: none; display: block; }
+        .preview-msg { color: #666; font-style: italic; }
+
     </style>
 </head>
 <body>
 
-    <!-- SIDEBAR -->
-    <div class="column sidebar">
-        <div class="window" style="height: auto;">
-            <div class="title-bar"><div class="title-bar-text">WINBOX // MNGR</div></div>
-            <div class="window-body" style="padding: 10px;">
-                <div>Storage Cap: 10GB</div>
-                <div id="quota-box"><div id="quota-bar"></div></div>
-                <div id="quota-text">0 / 10 GB</div>
-                <hr>
-                <button onclick="document.getElementById('uploader').click()">[+] Upload to A:</button>
-                <input type="file" id="uploader" multiple style="display:none" onchange="fs.handleUpload(this)">
-                <div style="margin-top:10px;">Drive Link:</div>
-                <button id="gdrive-btn" onclick="sys.gAuth()">Authenticate Key</button>
-            </div>
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <!-- SYSTEM MANAGER -->
+    <div class="window fixed">
+        <div class="title-bar"><div class="title-bar-text">SYSTEM</div></div>
+        <div class="window-body">
+            <div style="margin-bottom:2px">Disk Usage:</div>
+            <div class="progress-border"><div id="disk-bar" class="progress-bar"></div></div>
+            <div id="disk-text" style="text-align:center; font-size:10px; margin-top:2px">Calc...</div>
+            <hr>
+            <button onclick="document.getElementById('file-upload').click()">[+] Import File</button>
+            <input type="file" id="file-upload" multiple style="display:none" onchange="io.handleUpload(this)">
+            <button onclick="io.wipe()" style="margin-top:4px">Format Disk</button>
         </div>
+    </div>
+    
+    <!-- FILE EXPLORER -->
+    <div class="window flex">
+        <div class="title-bar"><div class="title-bar-text">EXPLORER</div></div>
+        <div class="window-body">
+            <ul id="file-list" class="file-list"></ul>
+        </div>
+    </div>
+</div>
 
-        <div class="window">
-            <div class="title-bar"><div class="title-bar-text">A:\ Files</div></div>
-            <div class="window-body">
-                <ul id="file-ui-list"></ul>
+<!-- WORKSPACE -->
+<div class="main">
+    <!-- VISUAL RENDERER -->
+    <div class="window flex" style="flex: 2;">
+        <div class="title-bar">
+            <div class="title-bar-text">DISPLAY.EXE</div>
+            <div class="title-bar-controls"><button aria-label="Minimize"></button><button aria-label="Maximize"></button></div>
+        </div>
+        <div class="window-body">
+            <div id="preview-stage">
+                <div class="preview-msg">System Idle. Use console to 'view' files.</div>
             </div>
         </div>
     </div>
 
-    <!-- MAIN TERMINAL & OUTPUT -->
-    <div class="column main">
-        <div class="window" style="flex: 1;">
-            <div class="title-bar">
-                <div class="title-bar-text">CMD.EXE</div>
-                <div class="title-bar-controls"><button aria-label="Minimize"></button><button aria-label="Maximize"></button></div>
-            </div>
-            <div class="window-body">
-                <div id="term-history">Winbox Kernel v1.0<br>Ready.<br>Type 'help' for commands.<br></div>
-                <div id="term-input-row">
-                    <span>A:\></span>
-                    <input type="text" id="term-input" autocomplete="off" autofocus>
-                </div>
-            </div>
-        </div>
-
-        <div class="window" style="flex: 2;">
-            <div class="title-bar">
-                <div class="title-bar-text">OUTPUT RENDERER</div>
-                <div class="title-bar-controls"><button aria-label="Close"></button></div>
-            </div>
-            <div class="window-body">
-                <iframe id="viewer-frame" src="about:blank"></iframe>
+    <!-- TERMINAL -->
+    <div class="window flex" style="flex: 1;">
+        <div class="title-bar"><div class="title-bar-text">COMMAND PROMPT</div></div>
+        <div class="window-body" style="background: #c0c0c0; padding:0;">
+            <div id="term-log">WINBOX [Version 1.2]<br>(C) 2025 Github Pages Ed.<br><br>Ready.<br></div>
+            <div id="term-input-line">
+                <span id="term-prompt">C:\&gt;</span>
+                <input type="text" id="term-cmd" autocomplete="off" spellcheck="false">
             </div>
         </div>
     </div>
+</div>
 
 <script>
-/**
- * SYSTEM CONFIG & UTILS
+/** 
+ *  WINBOX KERNEL 
+ *  1. Storage Engine (IndexedDB) 
+ *  2. Render Engine (Smart DOM injection)
+ *  3. Terminal Shell
  */
-const SYS = {
-    gClientId: "", // PASTE KEY HERE
-    dbName: "WINBOX_FS",
-    storeName: "DISK_A",
-    quotaMax: 10737418240, // 10 GB
-    fmt: (b) => {
-        if(b === 0) return '0 B';
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(b) / Math.log(1024));
-        return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
-    }
+
+const CFG = {
+    dbName: "WinboxSystem",
+    store: "Root",
+    limit: 10737418240 // 10GB
 };
 
-/**
- * FILE SYSTEM ENGINE (IndexedDB)
- */
-const fs = {
+/* --- 1. STORAGE --- */
+const io = {
     db: null,
-    
-    init: async function() {
-        return new Promise((resolve) => {
-            const req = indexedDB.open(SYS.dbName, 1);
-            req.onupgradeneeded = e => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(SYS.storeName)) {
-                    db.createObjectStore(SYS.storeName, { keyPath: "name" });
-                }
-            };
-            req.onsuccess = e => {
-                this.db = e.target.result;
-                this.updateQuota();
-                this.refreshList();
-                resolve();
-            };
-        });
+
+    init: function() {
+        const req = indexedDB.open(CFG.dbName, 2);
+        req.onupgradeneeded = e => {
+            let db = e.target.result;
+            if(!db.objectStoreNames.contains(CFG.store)) {
+                db.createObjectStore(CFG.store, { keyPath: 'name' });
+            }
+        };
+        req.onsuccess = e => {
+            this.db = e.target.result;
+            this.scan();
+        };
+        req.onerror = () => term.print("Critical Error: IndexedDB blocked.", "red");
     },
 
-    save: function(file) {
-        if(!this.db) return;
-        const tx = this.db.transaction([SYS.storeName], "readwrite");
-        const req = tx.objectStore(SYS.storeName).put({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            blob: file,
+    save: function(fileObj) {
+        let tx = this.db.transaction([CFG.store], 'readwrite');
+        tx.oncomplete = () => { this.scan(); term.print(`Saved: ${fileObj.name}`); };
+        tx.onerror = () => term.print("Write Failed. Quota Exceeded?", "red");
+        
+        tx.objectStore(CFG.store).put({
+            name: fileObj.name,
+            type: fileObj.type || 'text/plain', // Default fallback
+            size: fileObj.size,
+            blob: fileObj,
             lastMod: new Date().toLocaleTimeString()
         });
-        req.onsuccess = () => {
-            term.log(`Write: ${file.name} OK`);
-            this.refreshList();
-            this.updateQuota();
-        }
-        req.onerror = () => term.log(`Error: Failed to write ${file.name}. Storage full?`);
     },
 
-    load: function(filename, mode = "view") {
-        const tx = this.db.transaction([SYS.storeName], "readonly");
-        const req = tx.objectStore(SYS.storeName).get(filename);
+    load: function(name) {
+        let tx = this.db.transaction([CFG.store], 'readonly');
+        let req = tx.objectStore(CFG.store).get(name);
         req.onsuccess = () => {
-            if (req.result) {
-                const url = URL.createObjectURL(req.result.blob);
-                if(mode === "view") {
-                    document.getElementById('viewer-frame').src = url;
-                    term.log(`Render: ${filename} -> DISPLAY`);
-                } else {
-                    term.log(`${filename} [${SYS.fmt(req.result.size)}]`);
-                }
+            if(req.result) viewer.render(req.result);
+            else term.print("File not found.", "yellow");
+        };
+    },
+
+    del: function(name) {
+        let tx = this.db.transaction([CFG.store], 'readwrite');
+        tx.objectStore(CFG.store).delete(name);
+        tx.oncomplete = () => { term.print(`Deleted: ${name}`); this.scan(); };
+    },
+
+    scan: function() {
+        let list = document.getElementById('file-list');
+        list.innerHTML = "";
+        let sizeAccum = 0;
+        
+        let tx = this.db.transaction([CFG.store], 'readonly');
+        let cursor = tx.objectStore(CFG.store).openCursor();
+        
+        cursor.onsuccess = e => {
+            let ptr = e.target.result;
+            if(ptr) {
+                let f = ptr.value;
+                sizeAccum += f.size;
+                
+                // Add to UI
+                let li = document.createElement('li');
+                li.innerHTML = `<span>${f.name}</span> <span style="color:#666">${this.fmt(f.size)}</span>`;
+                li.onclick = () => io.load(f.name);
+                list.appendChild(li);
+                
+                ptr.continue();
             } else {
-                term.log(`Error: File '${filename}' not found.`);
+                // Done iterating
+                this.updateDiskBar(sizeAccum);
             }
         };
     },
 
-    del: function(filename) {
-        const tx = this.db.transaction([SYS.storeName], "readwrite");
-        tx.objectStore(SYS.storeName).delete(filename).onsuccess = () => {
-            term.log(`Deleted: ${filename}`);
-            this.refreshList();
-            this.updateQuota();
-        };
-    },
-
-    list: function() {
-        const tx = this.db.transaction([SYS.storeName], "readonly");
-        const store = tx.objectStore(SYS.storeName);
-        const req = store.getAll();
-        req.onsuccess = () => {
-            const res = req.result;
-            if(res.length === 0) return term.log("Disk empty.");
-            res.forEach(f => term.log(`${f.lastMod}  ${SYS.fmt(f.size).padEnd(8)}  ${f.name}`));
-        };
-    },
-
-    refreshList: function() {
-        const listUi = document.getElementById('file-ui-list');
-        listUi.innerHTML = '';
-        const tx = this.db.transaction([SYS.storeName], "readonly");
-        tx.objectStore(SYS.storeName).getAll().onsuccess = (e) => {
-            e.target.result.forEach(f => {
-                const li = document.createElement('li');
-                li.textContent = f.name;
-                li.onclick = () => fs.load(f.name);
-                listUi.appendChild(li);
-            });
-        };
-    },
-
-    handleUpload: function(input) {
-        for(let i=0; i<input.files.length; i++) {
-            this.save(input.files[i]);
-        }
-        input.value = ''; // Reset
-    },
-
-    updateQuota: async function() {
-        if (navigator.storage && navigator.storage.estimate) {
-            const est = await navigator.storage.estimate();
-            const used = est.usage || 0;
-            const pct = (used / SYS.quotaMax) * 100;
-            
-            document.getElementById('quota-bar').style.width = Math.min(pct, 100) + "%";
-            document.getElementById('quota-text').innerText = `${SYS.fmt(used)} / 10 GB`;
-            
-            if(used > SYS.quotaMax) term.log("WARNING: QUOTA EXCEEDED");
-        }
+    handleUpload: function(el) {
+        Array.from(el.files).forEach(f => this.save(f));
+        el.value = ''; // Reset
     },
 
     wipe: function() {
-        const tx = this.db.transaction([SYS.storeName], "readwrite");
-        tx.objectStore(SYS.storeName).clear();
-        this.refreshList();
-        this.updateQuota();
-        term.log("Disk Formatted.");
+        if(!confirm("Wipe all data permanently?")) return;
+        let tx = this.db.transaction([CFG.store], 'readwrite');
+        tx.objectStore(CFG.store).clear();
+        tx.oncomplete = () => { this.scan(); term.print("Disk Formatted."); };
+    },
+
+    // Utils
+    fmt: b => {
+        if(b<1024) return b+"B";
+        if(b<1024*1024) return (b/1024).toFixed(1)+"KB";
+        return (b/(1024*1024)).toFixed(1)+"MB";
+    },
+
+    updateDiskBar: function(used) {
+        let pct = (used / CFG.limit) * 100;
+        document.getElementById('disk-bar').style.width = pct + "%";
+        document.getElementById('disk-text').innerText = `${this.fmt(used)} / 10 GB`;
     }
 };
 
-/**
- * TERMINAL ENGINE
- */
-const term = {
-    hist: document.getElementById('term-history'),
-    input: document.getElementById('term-input'),
+/* --- 2. RENDERER (Smart View) --- */
+const viewer = {
+    stage: document.getElementById('preview-stage'),
     
+    render: function(record) {
+        term.print(`Opening: ${record.name} (${record.type})`);
+        this.stage.innerHTML = ""; // Clear stage
+        
+        const type = record.type;
+        const blob = record.blob;
+        const reader = new FileReader();
+
+        // 1. IMAGE
+        if(type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(blob);
+            this.stage.appendChild(img);
+        } 
+        // 2. HTML (Safe Frame)
+        else if(type === 'text/html') {
+            reader.onload = () => {
+                const ifr = document.createElement('iframe');
+                // usage of srcdoc prevents standard 'file download' trigger of src=blob
+                ifr.srcdoc = reader.result; 
+                this.stage.appendChild(ifr);
+            };
+            reader.readAsText(blob);
+        }
+        // 3. TEXT / CODE
+        else if(type.startsWith('text/') || type.includes('json') || type.includes('javascript') || type === '') {
+            reader.onload = () => {
+                const pre = document.createElement('pre');
+                pre.innerText = reader.result;
+                this.stage.appendChild(pre);
+            };
+            reader.readAsText(blob);
+        }
+        // 4. UNKNOWN / BINARY
+        else {
+            this.stage.innerHTML = `<div class='preview-msg'>Binary file. Cannot preview.<br>Type: ${type}</div>`;
+        }
+    }
+};
+
+/* --- 3. TERMINAL SHELL --- */
+const term = {
+    log: document.getElementById('term-log'),
+    cmd: document.getElementById('term-cmd'),
+
     init: function() {
-        this.input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const cmd = this.input.value.trim();
-                if(cmd) {
-                    this.log(`A:\\> ${cmd}`);
-                    this.exec(cmd);
-                    this.input.value = '';
-                }
-            }
+        this.cmd.addEventListener('keydown', e => {
+            if(e.key === 'Enter') this.exec();
         });
-        window.addEventListener('click', () => this.input.focus());
+        // Click anywhere to focus input
+        window.onclick = () => this.cmd.focus();
     },
 
-    log: function(msg) {
-        this.hist.innerText += msg + "\n";
-        this.hist.scrollTop = this.hist.scrollHeight;
+    print: function(text, color='lime') {
+        const ln = document.createElement('div');
+        ln.style.color = color;
+        ln.innerText = text;
+        this.log.appendChild(ln);
+        this.log.scrollTop = this.log.scrollHeight;
     },
 
-    exec: function(cmdString) {
-        const args = cmdString.split(' ');
-        const cmd = args[0].toLowerCase();
-        const arg1 = args[1];
+    exec: function() {
+        let val = this.cmd.value.trim();
+        if(!val) return;
+        this.print(`C:\\> ${val}`, 'silver');
+        this.cmd.value = '';
 
-        switch(cmd) {
-            case 'help':
-                this.log("Commands: ls, view [file], delete [file], clear, format, sync");
-                break;
-            case 'ls':
-            case 'dir':
-                fs.list();
-                break;
-            case 'view':
-            case 'open':
-                arg1 ? fs.load(arg1) : this.log("Usage: view [filename]");
-                break;
-            case 'delete':
-            case 'del':
-            case 'rm':
-                arg1 ? fs.del(arg1) : this.log("Usage: delete [filename]");
-                break;
-            case 'format':
-                if(confirm("Wipe all data?")) fs.wipe();
-                break;
-            case 'clear':
-            case 'cls':
-                this.hist.innerText = '';
-                break;
-            case 'sync':
-                sys.gAuth();
-                break;
-            default:
-                this.log("Bad command or filename.");
+        let parts = val.split(' ');
+        let act = parts[0].toLowerCase();
+        let arg = parts.slice(1).join(' ');
+
+        if(act === 'help') {
+            this.print("ls      : List files");
+            this.print("view [f]: View file");
+            this.print("rm [f]  : Delete file");
+            this.print("cls     : Clear screen");
+        } 
+        else if (act === 'ls') io.scan();
+        else if (act === 'cls') this.log.innerHTML = '';
+        else if (act === 'rm' || act === 'del') {
+            if(arg) io.del(arg);
+            else this.print("Specify filename.");
+        } 
+        else if (act === 'view' || act === 'open') {
+            if(arg) io.load(arg);
+            else this.print("Specify filename.");
+        }
+        else {
+            this.print("Bad command.");
         }
     }
 };
 
-/**
- * AUTH / SYNC SKELETON
- */
-const sys = {
-    gAuth: function() {
-        if(!SYS.gClientId) {
-            term.log("Error: No G_CLIENT_ID defined in code source.");
-            return;
-        }
-        term.log("Connecting to G-Drive OAuth Endpoints...");
-        // Placeholder for GAPIs logic. Without external JS library this is stub.
-        setTimeout(() => term.log("Err: Timeout. (Add library in <head>)"), 1000);
-    }
-};
-
-// Boot
-(async () => {
-    await fs.init();
-    term.init();
-})();
+/* --- BOOT --- */
+io.init();
+term.init();
 
 </script>
 </body>
