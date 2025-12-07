@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox MX [Workbench]</title>
+    <title>Winbox MX8 [Resourced]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
-        /* --- THEME: MACROMEDIA INDUSTRIAL --- */
+        /* --- THEME: INDUSTRIAL 2000 --- */
         :root {
             --bg-body: #999;
             --panel-face: #f4f4f4;
             --border: #666;
             --header-light: #e0e0e0;
             --header-dark: #cccccc;
-            --accent: #000080; /* Navy Blue */
+            --accent: #003399; /* Tech Blue */
             --font-ui: 'Verdana', sans-serif;
             --font-mono: 'Courier New', monospace;
         }
@@ -29,7 +29,7 @@
             user-select: none;
         }
 
-        /* --- HEADER --- */
+        /* --- TOOLBAR --- */
         #toolbar {
             height: 28px; background: #d0d0d0; border-bottom: 1px solid #777;
             display: flex; align-items: center; padding: 0 8px; gap: 8px;
@@ -44,10 +44,9 @@
         
         #clock { margin-left: auto; color: #555; font-size: 10px; }
 
-        /* --- 3-COLUMN WORKSPACE --- */
+        /* --- LAYOUT --- */
         #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
 
-        /* Generic Panel */
         .panel {
             background: var(--panel-face); border: 1px solid var(--border);
             display: flex; flex-direction: column; 
@@ -65,59 +64,42 @@
 
         .p-body { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
 
-        /* LEFT DOCK: ASSETS & LOGS */
-        .col-left { width: 220px; display: flex; flex-direction: column; gap: 4px; }
-
-        /* CENTER DOCK: STAGE */
+        /* COLUMNS */
+        .col-left { width: 230px; display: flex; flex-direction: column; gap: 4px; }
         .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        
-        /* RIGHT DOCK: INSERT MENU */
         .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
 
-        /* --- COMPONENT STYLES --- */
+        /* --- STAT BARS (Resource Center) --- */
+        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #f0f0f0; }
+        
+        .stat-row { font-size: 9px; color: #666; display: flex; justify-content: space-between; margin-bottom: 2px; }
+        
+        .meter-shell {
+            height: 10px; border: 1px solid #999; background: #fff; width: 100%; position: relative;
+        }
+        .meter-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #99ccff, #3366cc);
+            transition: width 0.4s ease-out;
+        }
 
-        /* Module Chips (Right Panel) */
+        /* --- OTHER WIDGETS --- */
         .module-item {
             display: flex; gap: 8px; align-items: center; padding: 8px;
             border-bottom: 1px solid #ccc; cursor: pointer; background: #fff;
-            transition: all 0.2s;
+            transition: background 0.2s;
         }
-        .module-item:hover { background: #eeffff; }
+        .module-item:hover { background: #eefbff; }
         
-        /* Module Icon */
         .chip-icon { 
             width: 24px; height: 24px; background: #333; 
             border: 1px solid #000; display: grid; place-items: center; 
         }
         .chip-inner { width: 8px; height: 8px; background: gold; border-radius: 50%; }
 
-        .module-meta { flex: 1; display: flex; flex-direction: column; }
-        .m-title { font-weight: bold; font-size: 10px; }
-        .m-sub { font-size: 9px; color: #777; }
-        
-        /* Status Badge */
-        .m-badge {
-            font-size: 9px; padding: 2px 4px; background: var(--accent); color: white; border-radius: 2px;
-        }
-        
-        /* Disabled / Installed State */
-        .module-item.is-installed {
-            background: #e0e0e0; cursor: default;
-        }
+        .module-item.is-installed { background: #e0e0e0; cursor: default; }
         .module-item.is-installed .chip-inner { background: #666; }
-        .module-item.is-installed .m-title { color: #888; text-decoration: line-through; }
-        .module-item.is-installed .m-badge { background: #999; }
-
-        /* File List */
-        ul#file-index {
-            list-style: none; padding: 0; margin: 0; flex: 1;
-            background: #fff; border: 1px solid #aaa; overflow-y: scroll;
-        }
-        ul#file-index li {
-            padding: 2px 4px; border-bottom: 1px dotted #ccc; display: flex; justify-content: space-between;
-        }
-        ul#file-index li:hover { background: #ddeeff; cursor: pointer; }
-
+        
         /* Viewport */
         #stage-wrap {
             flex: 1; border: 1px inset #fff; background: #888; padding: 20px;
@@ -129,26 +111,24 @@
             display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
 
-        /* Console */
-        #term-view {
-            flex: 1; background: #fdfdfd; border: 1px solid #aaa; font-family: var(--font-mono); 
-            font-size: 10px; padding: 4px; overflow-y: auto; color: #333; margin: 2px;
-        }
-        #term-in {
-            border: 1px solid #aaa; background: #eee; padding: 2px; outline: none; margin: 0 2px 2px 2px; font-family: inherit;
-        }
+        ul#file-index { list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; background: #fff; border: 1px solid #aaa; }
+        ul#file-index li { padding: 2px 5px; border-bottom: 1px dotted #ccc; }
+        ul#file-index li:hover { background: #eef; cursor: pointer; }
 
-        /* FAKE OS (When running BIOS) */
+        /* Console */
+        #term-out { flex:1; background:#fff; overflow-y:auto; border:1px solid #aaa; margin-bottom:2px; font-family:var(--font-mono); padding:3px; }
+        #term-in { border:1px solid #aaa; background:#eee; font-family:var(--font-mono); }
+
+        /* Hidden inputs */
+        .hidden { display: none !important; }
+        
+        /* Fake BIOS Screens */
         .os-boot { background: #000; color: #ddd; width:100%; height:100%; padding:20px; font-family: monospace; }
-        .os-gui { background: #008080; width:100%; height:100%; position: relative; }
+        .os-gui { background: #008080; width:100%; height:100%; position:relative; }
         .os-win { 
             position:absolute; top:20px; left:20px; width:220px; 
             background: #c0c0c0; border:2px outset #fff; box-shadow: 2px 2px 0 #000; 
         }
-        .os-head { background: #000080; color: #fff; padding: 2px 4px; font-weight: bold; display: flex; justify-content: space-between; }
-        .os-body { padding: 10px; color: black; }
-
-        .hidden { display: none !important; }
 
     </style>
 </head>
@@ -156,7 +136,7 @@
 
 <!-- TOOLBAR -->
 <div id="toolbar">
-    <div style="font-weight:bold; color:#444; letter-spacing:1px; margin-right: 10px;">WINBOX.MX7</div>
+    <div style="font-weight:bold; color:#444; letter-spacing:1px; margin-right: 10px;">WINBOX.MX8</div>
     <div style="border-left:1px solid #888; height: 16px;"></div>
     
     <button class="mx-btn" onclick="UI.upload()">Import Files...</button>
@@ -166,30 +146,49 @@
 
 <input type="file" id="sys-shim" class="hidden" multiple>
 
-<!-- 3 COLUMN WORKSPACE -->
+<!-- LAYOUT -->
 <div id="workspace">
 
-    <!-- 1. LEFT: ASSETS -->
+    <!-- LEFT: ASSETS & STATS -->
     <div class="col-left">
+        <!-- 1. Resource Monitor (Restored!) -->
+        <div class="panel" style="height: auto;">
+            <div class="p-head">Resource Center</div>
+            <div class="p-body">
+                <div class="stat-group">
+                    
+                    <div class="stat-row"><span>SYS MEMORY</span><span id="txt-ram">Init...</span></div>
+                    <div class="meter-shell"><div id="bar-ram" class="meter-fill"></div></div>
+                    
+                    <div class="stat-row"><span>CPU CYCLES</span><span id="txt-cpu">Init...</span></div>
+                    <div class="meter-shell"><div id="bar-cpu" class="meter-fill"></div></div>
+
+                    <div class="stat-row"><span>DRIVE SPACE</span><span id="txt-dsk">Init...</span></div>
+                    <div class="meter-shell"><div id="bar-dsk" class="meter-fill"></div></div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Asset Library -->
         <div class="panel" style="flex:1;">
-            <div class="p-head">Local Drive (A:)</div>
+            <div class="p-head">Local Assets</div>
             <div class="p-body" style="padding: 2px;">
                 <ul id="file-index"></ul>
             </div>
         </div>
-
-        <div class="panel" style="height: 150px;">
-            <div class="p-head">Log / Cmd</div>
-            <div class="p-body">
-                <div id="term-view">
-                    <div style="color:gray;">Kernel Loaded...</div>
-                </div>
+        
+        <!-- 3. Mini Console -->
+        <div class="panel" style="height: 120px;">
+            <div class="p-head">SysLog</div>
+            <div class="p-body" style="padding: 2px;">
+                <div id="term-out">Kernel Ready.</div>
                 <input type="text" id="term-in" placeholder="Cmd..." autocomplete="off">
             </div>
         </div>
     </div>
 
-    <!-- 2. CENTER: VIEWPORT -->
+    <!-- CENTER: VIEWPORT -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
             <div class="p-head"><span id="lbl-view">Viewport [Idle]</span></div>
@@ -197,7 +196,7 @@
                 <div id="stage-wrap">
                     <div id="visual-out">
                         <div style="text-align:center; color:#999;">
-                            NO SIGNAL<br><small>Insert and Run a Module</small>
+                            NO SIGNAL<br><small>Mount a module from the right.</small>
                         </div>
                     </div>
                 </div>
@@ -205,30 +204,29 @@
         </div>
     </div>
 
-    <!-- 3. RIGHT: INSERT DOCK (New!) -->
+    <!-- RIGHT: MODULE DOCK -->
     <div class="col-right">
         <div class="panel" style="flex: 1;">
             <div class="p-head">Module Bay</div>
-            <div class="p-body" style="background:#ddd;">
+            <div class="p-body" style="background:#e4e4e4;">
                 
-                <!-- CHIP: BIOS -->
+                <!-- BIOS MODULE -->
                 <div id="mod-bios" class="module-item" onclick="App.installBIOS()">
                     <div class="chip-icon"><div class="chip-inner"></div></div>
-                    <div class="module-meta">
-                        <span class="m-title">Standard BIOS</span>
-                        <span class="m-sub">v4.51 (ISO)</span>
+                    <div style="flex:1">
+                        <div style="font-weight:bold; font-size:10px;">BIOS Firmware</div>
+                        <div style="font-size:9px; color:#666;">Legacy ISO</div>
                     </div>
-                    <div class="m-badge" id="badge-bios">INSERT</div>
+                    <div id="badge-bios" style="background:#003399; color:#fff; font-size:9px; padding:2px;">INSERT</div>
                 </div>
 
-                <!-- Spacer / Fake modules for looks -->
-                <div class="module-item is-installed" style="cursor: default;">
+                <!-- Spacer Modules -->
+                <div class="module-item is-installed">
                     <div class="chip-icon"><div class="chip-inner" style="background:#555"></div></div>
-                    <div class="module-meta">
-                        <span class="m-title">VGA Controller</span>
-                        <span class="m-sub">Integrated</span>
+                    <div>
+                        <div style="font-weight:bold; font-size:10px; color:#888;">Network Card</div>
+                        <div style="font-size:9px; color:#888;">Hardware</div>
                     </div>
-                    <div class="m-badge" style="background:#888">HARDWARE</div>
                 </div>
 
             </div>
@@ -237,32 +235,35 @@
 
 </div>
 
-<!-- JAVASCRIPT KERNEL -->
+<!-- LOGIC -->
 <script>
 
 /* CONFIG */
 const C = {
-    DB: "WINBOX_PRO_V7",
-    VOL: "MAIN_DISK",
-    BIOS_NAME: "BOOT_SECTOR.ISO"
+    DB: "WINBOX_PRO_V8",
+    VOL: "DISK_A",
+    BIOS_NAME: "BIOS_BOOT.ISO",
+    LIMIT: 10 * 1024 * 1024 * 1024 // 10GB
 };
 
-/* NAMESPACES (Prevents ref errors) */
+/* --- LOGIC CORES --- */
 const App = {};
 const FS = {};
 const UI = {};
 const Term = {};
+const Stats = {}; // New Stats Logic
 
-/* FILESYSTEM (IndexedDB) */
+/* FILESYSTEM */
 FS.db = null;
 FS.init = function() {
     return new Promise(resolve => {
-        const req = indexedDB.open(C.DB, 2);
-        req.onupgradeneeded = e => {
+        if(!indexedDB) return;
+        const r = indexedDB.open(C.DB, 3);
+        r.onupgradeneeded = e => {
             const d = e.target.result;
             if(!d.objectStoreNames.contains(C.VOL)) d.createObjectStore(C.VOL, {keyPath:"name"});
         };
-        req.onsuccess = e => {
+        r.onsuccess = e => {
             FS.db = e.target.result;
             FS.scan();
             resolve();
@@ -270,164 +271,181 @@ FS.init = function() {
     });
 };
 
-FS.write = function(name, blob, type) {
+FS.write = (name, blob, type) => {
     const tx = FS.db.transaction([C.VOL], "readwrite");
-    tx.objectStore(C.VOL).put({ name:name, data:blob, size:blob.size, type:type||blob.type });
-    tx.oncomplete = () => { FS.scan(); };
+    tx.objectStore(C.VOL).put({name:name, data:blob, size:blob.size, type:type||blob.type});
+    tx.oncomplete = () => FS.scan();
 };
 
-FS.read = function(name, cb) {
+FS.read = (name, cb) => {
     const tx = FS.db.transaction([C.VOL], "readonly");
     const r = tx.objectStore(C.VOL).get(name);
-    r.onsuccess = () => { if(r.result) cb(r.result); else Term.err("File not found"); };
+    r.onsuccess = () => { if(r.result) cb(r.result); else Term.err("File missing"); };
 };
 
-FS.delete = function(name) {
+FS.delete = (name) => {
     const tx = FS.db.transaction([C.VOL], "readwrite");
     tx.objectStore(C.VOL).delete(name);
-    tx.oncomplete = () => { Term.log(`Removed ${name}`); FS.scan(); };
+    tx.oncomplete = () => { Term.log("Deleted "+name); FS.scan(); };
 };
 
-FS.format = function() {
-    if(!confirm("Erase all virtual data?")) return;
+FS.format = () => {
+    if(!confirm("Format Disk?")) return;
     const tx = FS.db.transaction([C.VOL], "readwrite");
     tx.objectStore(C.VOL).clear();
-    tx.oncomplete = () => { Term.log("Drive formatted"); FS.scan(); };
+    tx.oncomplete = () => { Term.log("Formatted"); FS.scan(); };
 };
 
-FS.scan = function() {
+FS.scan = () => {
     const list = document.getElementById("file-index");
     list.innerHTML = "";
-    
-    // Check if BIOS exists to lock button
-    let biosFound = false;
+    let biosLocked = false;
+    let usedBytes = 0;
 
     const tx = FS.db.transaction([C.VOL], "readonly");
     tx.objectStore(C.VOL).openCursor().onsuccess = e => {
         const c = e.target.result;
         if(c) {
             const f = c.value;
-            if(f.name === C.BIOS_NAME) biosFound = true;
-
+            usedBytes += f.size;
+            if(f.name === C.BIOS_NAME) biosLocked = true;
+            
             const li = document.createElement("li");
-            li.innerHTML = `<span>${f.name}</span>`;
+            li.innerHTML = `<span>${f.name}</span> <span style="color:#aaa">${Stats.fmt(f.size)}</span>`;
             li.onclick = () => App.load(f.name);
             list.appendChild(li);
             c.continue();
         } else {
-            // End of list
-            UI.setBIOSLock(biosFound);
+            // Finish scan
+            UI.updateModuleBay(biosLocked);
+            Stats.updateDisk(usedBytes);
         }
     };
 };
 
-/* LOGIC APPLICATION */
-App.installBIOS = function() {
-    Term.log("Reading Module firmware...");
-    // Simulate slight delay
+/* APP LOGIC */
+App.installBIOS = () => {
+    Term.log("Firmware insertion detecting...");
     setTimeout(() => {
-        const fakeBlob = new Blob(["BINARY_BIOS_DATA"], {type:'application/octet-stream'});
-        FS.write(C.BIOS_NAME, fakeBlob, 'system/iso');
-        Term.log("SUCCESS: BIOS Firmware Mounted.");
-    }, 500);
+        const b = new Blob(["BIOS_BINARY"], {type:'application/octet-stream'});
+        FS.write(C.BIOS_NAME, b, 'sys/iso');
+        Term.log("BIOS Firmware mounted.");
+    }, 400);
 };
 
-App.load = function(name) {
+App.load = (name) => {
     document.getElementById("lbl-view").innerText = "Viewport: " + name;
     FS.read(name, (f) => {
-        const stage = document.getElementById("visual-out");
-        stage.innerHTML = "";
-
-        if(f.name === C.BIOS_NAME) {
-            App.bootSimulation(stage);
-        } 
+        const stg = document.getElementById("visual-out");
+        stg.innerHTML = "";
+        
+        if(f.name === C.BIOS_NAME) App.bootBIOS(stg);
         else if(f.type.includes('image')) {
             let i = new Image(); i.src = URL.createObjectURL(f.data);
-            i.style.maxWidth="100%"; i.style.maxHeight="100%";
-            stage.appendChild(i);
-        } 
-        else {
+            i.style.maxWidth="100%"; i.style.maxHeight="100%"; stg.appendChild(i);
+        } else {
             let r = new FileReader();
             r.onload = e => {
-                let p = document.createElement("pre"); 
+                let p = document.createElement("pre");
                 p.innerText=e.target.result.substring(0,600);
                 p.style.padding="20px";
-                stage.appendChild(p);
+                stg.appendChild(p);
             };
             r.readAsText(f.data);
         }
     });
 };
 
-App.bootSimulation = function(stage) {
-    // BIOS SEQ
-    stage.innerHTML = `<div class="os-boot">ACME BIOS v1.2<br>Checking RAM... OK<br>Drive A: FOUND<br>Booting...</div>`;
+App.bootBIOS = (container) => {
+    container.innerHTML = `<div class="os-boot">MX BIOS v4.0<br>Checking Memory...<br>Disk: OK<br>Loading...</div>`;
     setTimeout(() => {
-        stage.innerHTML = `
-            <div class="os-gui">
-                <div class="os-win">
-                    <div class="os-head"><span>Winbox Loader</span><span>X</span></div>
-                    <div class="os-body">
-                        OS Layer Initialized.<br><br>
-                        Ready for instructions.
-                    </div>
-                </div>
-            </div>`;
-    }, 2000);
+        container.innerHTML = `
+        <div class="os-gui">
+            <div class="os-win">
+                <div style="background:navy; color:white; padding:2px; font-weight:bold">Virtual Loader</div>
+                <div style="padding:10px; color:black">OS Simulation Running...<br>Mem: 64MB</div>
+            </div>
+        </div>`;
+    }, 1500);
 };
 
-/* UI & CONSOLE */
-UI.setBIOSLock = function(isLocked) {
-    const mod = document.getElementById("mod-bios");
-    const bad = document.getElementById("badge-bios");
-    if(isLocked) {
-        mod.classList.add("is-installed");
-        bad.innerText = "MOUNTED";
+/* STATS ENGINE (Restored) */
+Stats.init = function() {
+    // RAM
+    const ram = (navigator.deviceMemory || 8);
+    document.getElementById("txt-ram").innerText = ram + " GB (Host)";
+    
+    // CPU Flutter Loop
+    setInterval(() => {
+        const c = Math.floor(Math.random() * 40); // 0-40% idle flutter
+        const r = Math.floor(Math.random() * 20 + 20); 
+        document.getElementById("bar-cpu").style.width = c + "%";
+        document.getElementById("bar-ram").style.width = r + "%";
+        document.getElementById("txt-cpu").innerText = c + "% Usage";
+    }, 1200);
+};
+
+Stats.updateDisk = (used) => {
+    const p = (used / C.LIMIT) * 100;
+    document.getElementById("bar-dsk").style.width = p + "%";
+    document.getElementById("txt-dsk").innerText = Stats.fmt(used) + " / 10 GB";
+};
+
+Stats.fmt = (b) => {
+    if(b==0) return "0B";
+    const i = Math.floor(Math.log(b)/Math.log(1024));
+    return (b/Math.pow(1024,i)).toFixed(1)+['B','KB','MB','GB'][i];
+};
+
+
+/* UI UTILS */
+UI.upload = () => document.getElementById("sys-shim").click();
+
+UI.updateModuleBay = (locked) => {
+    const m = document.getElementById("mod-bios");
+    const b = document.getElementById("badge-bios");
+    if(locked) {
+        m.classList.add("is-installed");
+        b.style.background = "#666"; b.innerText = "MOUNTED";
     } else {
-        mod.classList.remove("is-installed");
-        bad.innerText = "INSERT";
+        m.classList.remove("is-installed");
+        b.style.background = "#003399"; b.innerText = "INSERT";
     }
 };
 
-UI.upload = () => document.getElementById("sys-shim").click();
-
-Term.log = (txt) => {
-    const d = document.getElementById("term-view");
-    const l = document.createElement("div"); l.innerText="> "+txt;
-    d.appendChild(l); d.scrollTop=d.scrollHeight;
+Term.log = (t) => {
+    const c = document.getElementById("term-out");
+    const d = document.createElement("div"); d.innerText="> "+t;
+    c.appendChild(d); c.scrollTop=c.scrollHeight;
 };
 
-Term.err = (txt) => {
-    const d = document.getElementById("term-view");
-    const l = document.createElement("div"); l.innerText="ERR: "+txt; l.style.color="red";
-    d.appendChild(l); d.scrollTop=d.scrollHeight;
+Term.err = (t) => {
+    const c = document.getElementById("term-out");
+    const d = document.createElement("div"); d.innerText="ERR: "+t; d.style.color="red";
+    c.appendChild(d); c.scrollTop=c.scrollHeight;
 };
 
 /* BOOT */
 window.onload = function() {
-    // Events
-    const inp = document.getElementById("term-in");
-    inp.addEventListener("keydown", e => {
-        if(e.key === 'Enter') { 
-            let v = inp.value.trim(); 
-            if(v){ Term.log(v); inp.value=''; /* Simple Echo */ }
-        }
-    });
-
-    const shim = document.getElementById("sys-shim");
-    shim.onchange = e => {
-        Array.from(e.target.files).forEach(f => FS.write(f.name, f));
-        shim.value='';
-    };
-
-    // Time
+    // Clock
     setInterval(() => {
         const d = new Date();
-        document.getElementById("clock").innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
+        document.getElementById("clock").innerText = d.getHours() + ":" + d.getMinutes().toString().padStart(2,'0');
     }, 1000);
 
+    // Event Bindings
+    document.getElementById("term-in").addEventListener("keydown", e => {
+        if(e.key === 'Enter'){ let v=e.target.value.trim(); if(v){ Term.log(v); e.target.value=''; }}
+    });
+    
+    document.getElementById("sys-shim").onchange = e => {
+        Array.from(e.target.files).forEach(f => FS.write(f.name, f));
+        e.target.value='';
+    };
+
     FS.init();
-    Term.log("Workstation Ready.");
+    Stats.init();
+    Term.log("Sys Stats Online.");
 };
 
 </script>
