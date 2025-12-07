@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox MX [v14 Hierarchical]</title>
-    <!-- Dependencies: CSP Friendly -->
+    <title>Winbox MX [v15 Final]</title>
+    <!-- CSP: Allows CDNs + Blobs (for local loading) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://copy.sh https://cdnjs.cloudflare.com;">
+    
+    <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
-        /* --- INDUSTRIAL MX THEME --- */
+        /* --- INDUSTRIAL MX THEME (Standardized) --- */
         :root {
             --bg-body: #999;
-            --panel-face: #f4f4f4;
+            --panel: #f4f4f4;
             --border: #666;
-            --header-grad-1: #ddd;
-            --header-grad-2: #c0c0c0;
-            --select: #003399;
+            --header: #d4d4d4;
+            --header-dark: #b0b0b0;
+            --highlight: #003399;
             --font-ui: 'Verdana', sans-serif;
             --font-mono: 'Courier New', monospace;
         }
 
         * { box-sizing: border-box; }
-        
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
             background: var(--bg-body); font-family: var(--font-ui); font-size: 11px;
@@ -34,504 +35,442 @@
             height: 32px; background: #d0d0d0; border-bottom: 1px solid #777;
             display: flex; align-items: center; padding: 0 8px; gap: 8px; z-index: 10;
         }
+        
         .mx-btn {
             background: linear-gradient(#fff, #e0e0e0); border: 1px solid #777;
             padding: 4px 10px; font-size: 10px; color: #222; cursor: pointer;
-            box-shadow: 1px 1px 0px rgba(0,0,0,0.1); display: flex; align-items: center; gap:4px;
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.1); display: flex; align-items: center; gap: 5px;
         }
         .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; transform: translateY(1px); }
-        .mx-btn img { opacity: 0.7; }
         
-        #clock { margin-left: auto; color: #555; }
+        #indicator { width: 8px; height: 8px; border-radius: 50%; background: #999; border: 1px solid #555; }
+        #indicator.on { background: #0f0; box-shadow: 0 0 5px #0f0; }
 
-        /* WORKSPACE */
+        /* LAYOUT */
         #workspace { flex: 1; display: flex; padding: 4px; gap: 4px; overflow: hidden; }
 
         .panel {
-            background: var(--panel-face); border: 1px solid var(--border);
+            background: var(--panel); border: 1px solid var(--border);
             display: flex; flex-direction: column; box-shadow: 2px 2px 2px rgba(0,0,0,0.1);
         }
         
         .p-head {
-            height: 22px; background: linear-gradient(to bottom, var(--header-grad-1), var(--header-grad-2));
+            height: 22px; background: linear-gradient(to bottom, #eaeaea, #c0c0c0);
             border-bottom: 1px solid #999; display: flex; align-items: center; padding: 0 6px;
             font-weight: bold; color: #444; font-size: 10px; text-transform: uppercase;
         }
-        .p-body { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
 
-        /* --- LEFT COLUMN: FILE MANAGER --- */
-        .col-left { width: 280px; display: flex; flex-direction: column; gap: 4px; }
-        
-        /* Address Bar */
-        #fm-addr-bar {
-            background: #fff; border-bottom: 1px solid #aaa; padding: 4px; 
+        .col-left { width: 260px; display: flex; flex-direction: column; gap: 4px; }
+        .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
+
+        /* FILES */
+        #fm-bar {
+            background: #fff; border-bottom: 1px solid #aaa; padding: 3px; 
             display: flex; align-items: center; gap: 4px; font-size: 10px;
         }
-        #path-display { flex:1; background: #fff; border: 1px inset #ccc; padding: 2px 4px; color:#555; }
-
-        /* File Tree */
-        ul#file-index { 
+        #path-out { flex:1; background: #fff; border: 1px inset #ccc; padding: 2px 4px; color:#555; white-space:nowrap; overflow:hidden;}
+        
+        ul#file-list { 
             list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; 
             background: #fff; border: 1px solid #aaa; 
         }
-        
-        /* List Item Styling */
-        li.fs-item {
+        li.item {
             padding: 3px 6px; border-bottom: 1px dotted #e0e0e0; cursor: default;
-            display: flex; align-items: center; gap: 6px; font-size: 11px;
+            display: flex; align-items: center; gap: 6px;
         }
-        li.fs-item:hover { background: #f0f8ff; }
-        li.fs-item.selected { background: #003399; color: white; }
-        li.fs-item.drag-over { border: 2px solid #003399; background: #ddeeff; }
+        li.item:hover { background: #eef; }
+        li.item.sel { background: var(--highlight); color: white; }
 
-        .fs-icon { 
-            width: 14px; height: 12px; display: inline-block; background-size: contain; background-repeat: no-repeat;
+        .ico { width: 12px; height: 12px; display: inline-block; }
+        .ico-d { background: goldenrod; border-radius: 2px; } /* Directory */
+        .ico-f { background: #aaa; } /* File */
+
+        /* VIEWPORT */
+        #visual { 
+            width: 100%; height: 100%; background: #333; overflow: hidden; 
+            display: flex; align-items: center; justify-content: center; position:relative;
         }
-        .ico-folder { background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZmlsbD0iI0ZGQzEwNyIgZD0iTTAgNGgxdjExSDV2LTFINXYxMmg2di0xSDh2LTFIMnYtOUgwdi0xeiIvPjxwYXRoIGZpbGw9IiNGRkNBMjgiIGQ9Ik0wIDJmg0VjAuNTUgMCAxIDAuNDUgMSAxdi41TDggNWgzLjVsLjUuNXYxSDF2LTdIMHoiLz48L3N2Zz4='); /* Yellow Folder Placeholder */ background-color: goldenrod; border-radius: 2px; }
-        .ico-file   { background-color: #999; border-radius: 1px; width: 10px; height: 12px; position:relative; }
-        .ico-file::after { content:''; position:absolute; top:2px; left:2px; right:2px; height:1px; background:#fff; }
+        #visual canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
-        /* --- CENTER COLUMN: VIEWPORT --- */
-        .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        #visual-out { width: 100%; height: 100%; background: #222; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;}
-        #visual-out canvas { display: block; width:100%; height:100%; image-rendering: pixelated; }
-
-        /* --- RIGHT COLUMN: DOCK --- */
-        .col-right { width: 160px; display: flex; flex-direction: column; gap: 4px; }
-        
-        /* Modules */
-        .mod-item { 
-            display: flex; gap: 8px; align-items: center; padding: 8px; background: #fff; border-bottom: 1px solid #ccc;
-        }
-        .mod-item.active { background: #eff; border-left: 3px solid navy; }
-        .chip-led { width:8px; height:8px; background:#444; border-radius:50%; }
-        .active .chip-led { background:#0f0; box-shadow:0 0 5px #0f0; }
+        /* MODULES */
+        .mod { padding: 8px; background: #fff; border-bottom: 1px solid #ccc; display: flex; gap: 8px; align-items: center; }
+        .mod.active { background: #eefbff; border-left: 3px solid var(--highlight); }
+        .led { width: 8px; height: 8px; background: #444; border-radius: 50%; }
+        .mod.active .led { background: #0f0; box-shadow: 0 0 5px #0f0; }
 
         .hidden { display: none !important; }
-        .stat-bar-shell { height:6px; background:#fff; border:1px solid #888; width:100%; margin-top:2px; }
-        .stat-fill { height:100%; background:navy; width:0%; transition: width 0.3s; }
-
+        
+        /* VIEWER */
+        .txt-view { width:100%; height:100%; padding:20px; font-family:'Courier New'; color:#ddd; overflow:auto; user-select:text; }
     </style>
 </head>
 <body>
 
 <div id="toolbar">
-    <div style="font-weight:bold; color:#555; margin-right:5px;">WINBOX.MX14</div>
+    <div id="indicator" title="Engine Status"></div>
+    <div style="font-weight:bold; color:#555; margin-right:5px;">WINBOX.MX15</div>
     <div style="border-left:1px solid #888; height:16px;"></div>
 
-    <button id="btn-import" class="mx-btn">Import...</button>
-    <button id="btn-mkdir" class="mx-btn" title="New Folder">+ Folder</button>
-    <button id="btn-format" class="mx-btn" style="color:#a00;">Format</button>
-
+    <button id="btn-imp" class="mx-btn">Import...</button>
+    <button id="btn-mkdir" class="mx-btn">+ Dir</button>
+    <button id="btn-fmt" class="mx-btn" style="color:#a00;">Format</button>
+    
     <div style="flex:1"></div>
-    <div id="clock">Ready</div>
+    <div id="sys-status" style="font-size:10px; color:#555;">Initializing...</div>
 </div>
 
-<input type="file" id="sys-up" class="hidden" multiple>
+<input type="file" id="sys-file" class="hidden" multiple>
 
 <div id="workspace">
 
-    <!-- LEFT: FILESYSTEM -->
+    <!-- FILESYSTEM -->
     <div class="col-left">
         <div class="panel" style="flex:1;">
-            <div class="p-head">
-                <span>File Explorer</span>
+            <div class="p-head">Explorer (IDB)</div>
+            <div id="fm-bar">
+                <button id="btn-up" class="mx-btn" style="padding:0 5px;">&uarr;</button>
+                <div id="path-out">/</div>
             </div>
-            
-            <!-- Address Bar -->
-            <div id="fm-addr-bar">
-                <button class="mx-btn" id="btn-up" style="padding:0 5px;" title="Up One Level">&uarr;</button>
-                <div id="path-display">/</div>
-            </div>
-
             <div class="p-body">
-                <ul id="file-index"></ul>
-            </div>
-            <div style="height:24px; background:#e0e0e0; border-top:1px solid #aaa; display:flex; align-items:center; padding:0 5px; font-size:10px; color:#555;">
-                <span id="fs-count">0 items</span>
-                <span style="margin-left:auto" id="fs-size">0 KB</span>
+                <ul id="file-list"></ul>
             </div>
         </div>
-        
-        <!-- Log Console -->
-        <div class="panel" style="height: 120px;">
-            <div class="p-head">Activity Log</div>
-            <div id="term-out" style="flex:1; background:#fff; overflow-y:auto; padding:4px; font-family:var(--font-mono); font-size:10px;"></div>
+        <div class="panel" style="height: 100px;">
+            <div class="p-head">Log</div>
+            <div id="term-log" style="flex:1; background:#fff; overflow-y:auto; padding:4px; font-family:var(--font-mono); font-size:10px;"></div>
         </div>
     </div>
 
-    <!-- CENTER: STAGE -->
+    <!-- VIEWPORT -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
-            <div class="p-head"><span id="stage-title">Visual Viewport</span></div>
+            <div class="p-head"><span id="lbl-view">Viewport</span></div>
             <div class="p-body">
-                <div id="visual-out">
-                    <div style="text-align:center; color:#666; font-size:12px;">
-                        [ VIEWPORT EMPTY ]<br>
-                        Select a file to view.<br>Mount OS image to Boot.
+                <div id="visual">
+                    <div style="text-align:center; color:#888;">
+                        [ SIGNAL LOST ]<br><br>
+                        Read README.TXT for help.
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- RIGHT: MODULES -->
+    <!-- DOCK -->
     <div class="col-right">
-        <!-- Resource Panel -->
-        <div class="panel" style="height:auto; padding-bottom:5px;">
-            <div class="p-head">Monitor</div>
-            <div style="padding:5px; font-size:9px; color:#666;">
-                <div>RAM USAGE</div><div class="stat-bar-shell"><div id="bar-ram" class="stat-fill"></div></div>
-                <div style="margin-top:4px;">DISK (DB)</div><div class="stat-bar-shell"><div id="bar-disk" class="stat-fill"></div></div>
-            </div>
-        </div>
-
-        <!-- Modules -->
         <div class="panel" style="flex:1;">
-            <div class="p-head">Boot Modules</div>
-            <div style="background:#e8e8e8; flex:1;">
+            <div class="p-head">Hardware Dock</div>
+            <div style="background:#e0e0e0; flex:1; display:flex; flex-direction:column;">
                 
-                <div id="mod-os" class="mod-item">
-                    <div class="chip-led"></div>
+                <div id="mod-boot" class="mod">
+                    <div class="led"></div>
                     <div>
-                        <div style="font-weight:bold; font-size:10px;">OS Bootloader</div>
-                        <div id="lbl-os-stat" style="font-size:9px; color:#666;">No Image Found</div>
+                        <div style="font-weight:bold; font-size:10px;">Bootloader</div>
+                        <div id="lbl-boot" style="font-size:9px; color:#666;">Empty</div>
                     </div>
                 </div>
-                
-                <!-- Run Button (Initially Hidden) -->
-                <button id="btn-run" class="mx-btn hidden" style="width:90%; margin:5px auto; background:#bbf; border-color:blue;">BOOT SYSTEM</button>
 
+                <div class="mod">
+                    <div id="led-cpu" class="led"></div>
+                    <div>
+                        <div style="font-weight:bold; font-size:10px;">x86 CPU</div>
+                        <div id="lbl-eng" style="font-size:9px; color:#666;">Check PWD...</div>
+                    </div>
+                </div>
+
+                <button id="btn-run" class="mx-btn hidden" style="margin:10px; justify-content:center; background:#bbf;">POWER ON</button>
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- SCRIPT LOGIC -->
 <script>
-/**
- * WINBOX MX v14 [HIERARCHICAL FS]
- * Architecture: Path-Based Object Storage
- * key: fullPath (e.g. "/System/Config.ini")
- */
-(function() {
+/** WINBOX MX v15 **/
 
-    // --- LOADER: Engine ---
-    function loadEngine() {
+(function() {
+    
+    // --- 1. CONFIG ---
+    const C = { DB: "WINBOX_V15_FINAL", STORE: "FILES" };
+    
+    const State = {
+        path: "/",
+        selected: null,
+        os: null,
+        running: false,
+        engineReady: false
+    };
+
+    // --- 2. LOADER: The Smart Engine Logic ---
+    async function loadEngineSystem(fsRef) {
+        Term.log("Checking for local x86 drivers...");
+        
+        // 1. Try to load 'libv86.js' from virtual drive
+        let localFile = await fsRef.getFile("/libv86.js");
+        
+        if (localFile) {
+            Term.log("Local Driver Found. Loading...");
+            const url = URL.createObjectURL(localFile.data);
+            injectScript(url, "Local File");
+        } else {
+            // 2. Fallback to CDN
+            Term.log("No local driver. Using Cloud CDN...");
+            injectScript("https://unpkg.com/v86@latest/build/libv86.js", "UNPKG");
+        }
+    }
+
+    function injectScript(src, sourceName) {
         const s = document.createElement("script");
-        s.src = "https://unpkg.com/v86@latest/build/libv86.js";
-        s.onload = () => { Term.log("x86 Engine Ready"); };
+        s.src = src;
+        s.onload = () => {
+            if(window.V86Starter) {
+                State.engineReady = true;
+                Term.log("x86 Engine Online (" + sourceName + ")");
+                document.getElementById("lbl-eng").innerText = "Ready (" + sourceName + ")";
+                document.getElementById("led-cpu").style.background = "#0f0";
+                document.getElementById("indicator").className = "on";
+            }
+        };
+        s.onerror = () => {
+            Term.err("Failed to load x86 driver from " + sourceName);
+            document.getElementById("lbl-eng").innerText = "Load Failed";
+        };
         document.head.appendChild(s);
     }
 
-    // --- CONFIG ---
-    const CFG = { 
-        DB: "WINBOX_FS_TREE", 
-        STORE: "FILES",
-        MAX: 10737418240 
-    };
-
-    // --- STATE ---
-    const State = {
-        pwd: "/",        // Current Path
-        selected: null,  // Selected File Path
-        emuRunning: false,
-        bootFile: null,
-        instance: null
-    };
-
-    // --- FILESYSTEM ---
+    // --- 3. FILESYSTEM ---
     const FS = {
         db: null,
-        
-        init: async () => new Promise(res => {
+        init: () => new Promise(resolve => {
             if(!indexedDB) return;
-            const r = indexedDB.open(CFG.DB, 1);
+            const r = indexedDB.open(C.DB, 1);
             r.onupgradeneeded = e => {
-                const d = e.target.result;
-                if(!d.objectStoreNames.contains(CFG.STORE)) {
-                    // keyPath is the FULL PATH "id"
-                    d.createObjectStore(CFG.STORE, {keyPath: "id"});
-                }
+                let d=e.target.result; 
+                if(!d.objectStoreNames.contains(C.STORE)) d.createObjectStore(C.STORE, {keyPath:"id"});
             };
             r.onsuccess = e => {
                 FS.db = e.target.result;
-                FS.ensureRoot().then(() => {
+                FS.installDefaults().then(() => {
                     FS.scan();
-                    res();
+                    resolve();
                 });
             };
         }),
+        
+        // --- Installer / Defaults ---
+        installDefaults: async () => {
+            return new Promise(resolve => {
+                const tx = FS.db.transaction([C.STORE], "readonly");
+                const cnt = tx.objectStore(C.STORE).count();
+                cnt.onsuccess = () => {
+                    if(cnt.result > 0) return resolve(); // Already exists
 
-        ensureRoot: async () => {
-            // Ensure "/" folder exists
-            return FS.writeFolder("/"); 
-        },
+                    Term.log("Formatting new drive...");
+                    
+                    const files = [
+                        { path: "/", type: "dir" }, // Root
+                        { path: "/Drivers/", type: "dir" },
+                        { 
+                          path: "/README.TXT", 
+                          type: "txt", 
+                          content: "WINBOX MX DRIVER MANUAL\n=======================\n\nIf the emulator fails to start due to firewall or connection issues,\nyou can manually install the drivers by uploading these files into the root (/) folder:\n\n1. ENGINE JS:\n   https://unpkg.com/v86@latest/build/libv86.js\n   (Rename to 'libv86.js')\n\n2. CPU WASM:\n   https://unpkg.com/v86@latest/build/v86.wasm\n   (Rename to 'v86.wasm')\n\n3. BIOS FILES:\n   seabios.bin\n   vgabios.bin\n\nWhen Winbox reboots, it will look for 'libv86.js' locally first.\n\n---\nSupported OS: .img, .iso\nMount and click POWER ON."
+                        }
+                    ];
 
-        // Helper: Get Path Object (Folder) vs File
-        writeFolder: (path) => new Promise(res => {
-            // Ensure path ends with /
-            if(!path.endsWith("/")) path += "/";
-            if(path === "/") return res(); // Root exists virtually
-            
-            // Calc Name: /Users/Admin/ -> Admin
-            const parts = path.split("/").filter(p => p);
-            const name = parts[parts.length-1];
-            // Parent: /Users/
-            const parent = "/" + parts.slice(0, -1).join("/") + (parts.length > 1 ? "/" : "");
+                    const writeNext = (i) => {
+                        if(i >= files.length) return resolve();
+                        const f = files[i];
+                        let entry = {
+                            id: f.path,
+                            name: f.path.split('/').filter(x=>x).pop() || "Root",
+                            parent: f.path.substring(0, f.path.lastIndexOf('/', f.path.length-2)+1) || "",
+                            type: f.type === "dir" ? "directory" : "text/plain",
+                            date: new Date(),
+                            size: f.content ? f.content.length : 0
+                        };
+                        
+                        if(f.type !== "dir") {
+                            entry.data = new Blob([f.content], {type:"text/plain"});
+                        }
 
-            const entry = {
-                id: path,
-                name: name,
-                type: "directory",
-                parent: parent,
-                size: 0,
-                date: new Date()
-            };
-            const tx = FS.db.transaction([CFG.STORE], "readwrite");
-            tx.objectStore(CFG.STORE).put(entry);
-            tx.oncomplete = res;
-        }),
-
-        writeFile: (path, fileBlob) => new Promise(res => {
-            // Full path: /Docs/file.txt
-            const parts = path.split("/");
-            const name = parts.pop();
-            let parent = parts.join("/"); 
-            if(!parent.endsWith("/")) parent += "/";
-
-            const entry = {
-                id: path,
-                name: name,
-                type: fileBlob.type || "application/octet-stream",
-                parent: parent,
-                size: fileBlob.size,
-                data: fileBlob,
-                date: new Date()
-            };
-
-            const tx = FS.db.transaction([CFG.STORE], "readwrite");
-            tx.objectStore(CFG.STORE).put(entry);
-            tx.oncomplete = () => { res(); };
-        }),
-
-        del: (id) => {
-            const tx = FS.db.transaction([CFG.STORE], "readwrite");
-            // Simple delete. In real recursion we would delete children. 
-            // Limitation: Deleting a folder here orphans children (keeps it potato-simple)
-            tx.objectStore(CFG.STORE).delete(id);
-            tx.oncomplete = () => FS.scan();
-        },
-
-        move: (childId, newParentPath) => {
-            if(!newParentPath.endsWith("/")) newParentPath += "/";
-            
-            const tx = FS.db.transaction([CFG.STORE], "readwrite");
-            const store = tx.objectStore(CFG.STORE);
-            
-            store.get(childId).onsuccess = e => {
-                const item = e.target.result;
-                if(!item) return;
-
-                // Create new ID
-                const newId = newParentPath + item.name + (item.type==="directory" ? "/" : "");
-                
-                if(newId === item.id) return; // Same place
-
-                item.parent = newParentPath;
-                item.id = newId;
-
-                // Delete Old -> Put New
-                store.delete(childId);
-                store.put(item);
-                
-                tx.oncomplete = () => {
-                    Term.log("Moved to " + newParentPath);
-                    FS.scan();
+                        const t = FS.db.transaction([C.STORE], "readwrite");
+                        t.objectStore(C.STORE).put(entry);
+                        t.oncomplete = () => writeNext(i+1);
+                    };
+                    writeNext(0);
                 };
-            };
+            });
         },
 
-        // Scan Current PWD
+        // --- Operations ---
         scan: () => {
-            const ul = document.getElementById("file-index");
-            ul.innerHTML = "";
-            let count = 0; 
-            let totalBytes = 0;
-            let bootCandidate = null;
-
-            // Simple cursor scan and filter in memory (fast enough for small IDBs)
-            const tx = FS.db.transaction([CFG.STORE], "readonly");
-            tx.objectStore(CFG.STORE).openCursor().onsuccess = e => {
+            document.getElementById("file-list").innerHTML = "";
+            document.getElementById("path-out").innerText = State.path;
+            
+            const tx = FS.db.transaction([C.STORE], "readonly");
+            tx.objectStore(C.STORE).openCursor().onsuccess = e => {
                 const c = e.target.result;
                 if(c) {
                     const item = c.value;
-                    totalBytes += item.size || 0;
-                    
-                    // 1. Bootable check (Global)
-                    if(!item.type === "directory" && item.name.match(/\.(img|iso)$/i) && !bootCandidate) {
-                        bootCandidate = item;
-                    }
-
-                    // 2. Render Check (Only if parent matches PWD)
-                    if(item.parent === State.pwd) {
-                        UI.addFileItem(ul, item);
-                        count++;
-                    }
-
+                    if(item.parent === State.path) UI.addList(item);
+                    // Check Global Bootable
+                    if(!State.os && item.name.match(/\.(iso|img)$/i)) UI.mount(item);
                     c.continue();
-                } else {
-                    // Finish
-                    document.getElementById("path-display").innerText = State.pwd;
-                    document.getElementById("fs-count").innerText = count + " items";
-                    UI.updateBootStatus(bootCandidate);
-                    UI.meter(totalBytes);
                 }
             };
         },
-
-        wipe: () => {
-            const tx = FS.db.transaction([CFG.STORE], "readwrite");
-            tx.objectStore(CFG.STORE).clear();
-            tx.oncomplete = () => { State.pwd = "/"; FS.ensureRoot().then(FS.scan); Term.log("Format Complete"); };
+        getFile: (path) => new Promise(r => {
+            const tx = FS.db.transaction([C.STORE], "readonly");
+            tx.objectStore(C.STORE).get(path).onsuccess = e => r(e.target.result);
+        }),
+        put: (f) => {
+            const path = State.path + f.name;
+            const entry = { id:path, name:f.name, parent:State.path, type:f.type||"bin", data:f, size:f.size, date:new Date() };
+            const tx = FS.db.transaction([C.STORE], "readwrite");
+            tx.objectStore(C.STORE).put(entry);
+            tx.oncomplete = () => FS.scan();
+        },
+        mkdir: (name) => {
+            const path = State.path + name + "/";
+            const entry = { id:path, name:name, parent:State.path, type:"directory", size:0, date:new Date() };
+            const tx = FS.db.transaction([C.STORE], "readwrite");
+            tx.objectStore(C.STORE).put(entry);
+            tx.oncomplete = () => FS.scan();
+        },
+        del: (id) => {
+             const tx = FS.db.transaction([C.STORE], "readwrite");
+             tx.objectStore(C.STORE).delete(id);
+             tx.oncomplete = () => FS.scan();
+        },
+        format: () => {
+            const tx = FS.db.transaction([C.STORE], "readwrite");
+            tx.objectStore(C.STORE).clear();
+            tx.oncomplete = () => { window.location.reload(); };
         }
     };
 
-    // --- UI MANAGER ---
+    // --- 4. UI ---
     const UI = {
-        addFileItem: (list, item) => {
-            const isDir = item.type === "directory";
+        addList: (item) => {
             const li = document.createElement("li");
-            li.className = "fs-item";
-            li.draggable = !isDir; // Allow dragging files
+            li.className = "item";
+            const isDir = item.type === "directory";
+            li.innerHTML = `<div class="ico ${isDir?'ico-d':'ico-f'}"></div><span style="flex:1">${item.name}</span>`;
             
-            // Icon
-            const icon = document.createElement("div");
-            icon.className = "fs-icon " + (isDir ? "ico-folder" : "ico-file");
-            
-            const name = document.createElement("span");
-            name.innerText = item.name;
-            name.style.flex = 1;
-
-            li.append(icon, name);
-            list.appendChild(li);
-
-            // INTERACTIONS
-            // 1. Open
-            li.addEventListener("dblclick", () => {
-                if(isDir) {
-                    State.pwd = item.id;
-                    FS.scan();
-                } else {
-                    Viewer.open(item);
-                }
-            });
-
-            // 2. Select
             li.addEventListener("click", () => {
-                document.querySelectorAll(".selected").forEach(e=>e.classList.remove("selected"));
-                li.classList.add("selected");
-                State.selected = item;
+                 document.querySelectorAll(".item.sel").forEach(x=>x.classList.remove("sel"));
+                 li.classList.add("sel");
             });
-
-            // 3. DRAG (Source)
-            li.addEventListener("dragstart", (e) => {
-                e.dataTransfer.setData("text/plain", item.id);
+            li.addEventListener("dblclick", () => {
+                if(isDir) { State.path = item.id; FS.scan(); }
+                else Viewer.show(item);
             });
-
-            // 4. DROP (Target - Only Folders)
-            if(isDir) {
-                li.addEventListener("dragover", e => { e.preventDefault(); li.classList.add("drag-over"); });
-                li.addEventListener("dragleave", e => li.classList.remove("drag-over"));
-                li.addEventListener("drop", e => {
-                    e.preventDefault();
-                    li.classList.remove("drag-over");
-                    const srcId = e.dataTransfer.getData("text/plain");
-                    if(srcId) FS.move(srcId, item.id);
-                });
-            }
-        },
-
-        updateBootStatus: (item) => {
-            const lbl = document.getElementById("lbl-os-stat");
-            const btn = document.getElementById("btn-run");
-            const mod = document.getElementById("mod-os");
             
-            if(item) {
-                State.bootFile = item;
-                lbl.innerText = item.name + " (" + State.pwd + ")";
-                mod.classList.add("active");
-                btn.classList.remove("hidden");
-            } else {
-                State.bootFile = null;
-                lbl.innerText = "No OS in Filesystem";
-                mod.classList.remove("active");
-                btn.classList.add("hidden");
-            }
-        },
+            // Add Alt+Click Delete for quick testing
+            li.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+                if(confirm("Delete " + item.name + "?")) FS.del(item.id);
+            });
 
-        meter: (b) => {
-             const p = (b / CFG.MAX)*100;
-             document.getElementById("bar-disk").style.width = p + "%";
+            document.getElementById("file-list").appendChild(li);
+        },
+        mount: (item) => {
+            State.os = item;
+            document.getElementById("mod-boot").classList.add("active");
+            document.getElementById("lbl-boot").innerText = item.name;
+            document.getElementById("btn-run").classList.remove("hidden");
+            Term.log("Mounted Boot Image: " + item.name);
+        },
+        navUp: () => {
+            if(State.path === "/") return;
+            const p = State.path.split("/").filter(x=>x);
+            p.pop();
+            State.path = p.length ? "/" + p.join("/") + "/" : "/";
+            FS.scan();
         }
     };
 
-    // --- ACTIONS ---
-    const Actions = {
-        mkdir: () => {
-            const name = prompt("Folder Name:");
-            if(!name) return;
-            const newPath = State.pwd + name + "/";
-            FS.writeFolder(newPath).then(FS.scan);
-        },
-        
-        up: () => {
-            if(State.pwd === "/") return;
-            // Remove last slash, split, remove last dir, join
-            const parts = State.pwd.split("/").filter(p => p);
-            parts.pop();
-            State.pwd = parts.length > 0 ? ("/" + parts.join("/") + "/") : "/";
-            FS.scan();
-        },
+    // --- 5. VIEWER ---
+    const Viewer = {
+        show: (item) => {
+            const v = document.getElementById("visual");
+            v.innerHTML = "";
+            document.getElementById("lbl-view").innerText = item.name;
 
-        import: () => document.getElementById("sys-up").click(),
-        
-        handleFiles: (list) => {
-            // Handle multiple files import into Current Dir
-            let queue = Array.from(list);
-            
-            const next = () => {
-                if(queue.length === 0) {
-                    document.getElementById("sys-up").value = "";
-                    FS.scan();
-                    return;
-                }
-                const f = queue.shift();
-                Term.log("Import: " + f.name);
-                
-                // ZIP LOGIC?
-                if(f.name.endsWith(".zip") && window.JSZip) {
-                   new JSZip().loadAsync(f).then(zip => {
-                       // We can try to maintain folder structure from zip?
-                       // Simplified: Flatten to current dir for stability, OR try path
-                       // Let's implement full paths!
-                       
-                       const zipPromises = [];
-                       zip.forEach((path, entry) => {
-                           if(entry.dir) {
-                               const dirPath = State.pwd + entry.name; 
-                               // Write folder implicitly by writing files? 
-                               // Need explicit folder writing.
-                               zipPromises.push(FS.writeFolder(dirPath));
-                           } else {
-                               // file
-                               zipPromises.push(entry.async("blob").then(b => {
-                                   const fullPath = State.pwd + entry.name; 
-                                   // Note: JSZip names usually include path like "folder/file.txt"
-                                   // We need to recursively create parents. (Complex).
-                                   // POTATO MODE: Flatten name, put in current PWD? 
-                                   // OR just use full path concatenation: /Root/ + ZipPath
-                                   
-                                   return FS.writeFile(fullPath, b);
-                               }));
+            if(item.type.includes("text") || item.name.endsWith(".TXT")) {
+                const r = new FileReader();
+                r.onload = e => {
+                    const d = document.createElement("div"); d.className="txt-view";
+                    d.innerText = e.target.result;
+                    v.appendChild(d);
+                };
+                r.readAsText(item.data);
+            } else {
+                 v.innerHTML = "<div style='color:#ccc; padding:20px;'>Binary File<br>"+item.size+" Bytes</div>";
+            }
+        }
+    };
+
+    // --- 6. VM RUNNER ---
+    async function bootVM() {
+        if(!State.engineReady) return Term.err("Engine not loaded yet.");
+        if(!State.os) return Term.err("No OS Mounted.");
+
+        document.getElementById("visual").innerHTML = "";
+        const cfg = {
+            // NOTE: For WASM/BIOS we attempt local fetch, falling back to CDN is handled by Browser if not intercepted
+            // Actually v86 fetches relative URLs. 
+            // We use UNPKG by default unless you downloaded v86.wasm into root too.
+            // Simplified: Always use CDN for assets for now to ensure stability of 'Manual Install' just for JS logic.
+            wasm_path: "https://unpkg.com/v86@latest/build/v86.wasm",
+            memory_size: 128*1024*1024,
+            vga_memory_size: 8*1024*1024,
+            screen_container: document.getElementById("visual"),
+            bios: { url: "https://unpkg.com/v86@latest/bios/seabios.bin" },
+            vga_bios: { url: "https://unpkg.com/v86@latest/bios/vgabios.bin" },
+            autostart: true
+        };
+
+        if(State.os.name.endsWith(".iso")) cfg.cdrom = { buffer: State.os.data };
+        else cfg.hda = { buffer: State.os.data };
+
+        try {
+            new V86Starter(cfg);
+            document.getElementById("lbl-view").innerText = "Viewport [RUNNING]";
+            document.getElementById("sys-status").innerText = "Running";
+        } catch(e) { Term.err("VM Crash: " + e.message); }
+    }
+
+    // --- 7. BINDINGS ---
+    const Term = {
+        log: t => { 
+            const d=document.createElement("div"); d.innerText="> "+t; 
+            document.getElementById("term-log").appendChild(d); 
+        },
+        err: t => {
+            const d=document.createElement("div"); d.innerText="ERR: "+t; d.style.color="red";
+            document.getElementById("term-log").appendChild(d);
+        }
+    };
+
+    window.onload = () => {
+        // Buttons
+        document.getElementById("btn-imp").onclick = () => document.getElementById("sys-file").click();
+        document.getElementById("sys-file").onchange = (e) => {
+            Array.from(e.target.files).forEach(f => FS.put(f)); e.target.value="";
+        };
+        document.getElementById("btn-up").onclick = UI.navUp;
+        document.getElementById("btn-mkdir").onclick = () => {
+            const n = prompt("Folder Name"); if(n) FS.mkdir(n);
+        };
+        document.getElementById("btn-fmt").onclick = FS.format;
+        document.getElementById("btn-run").onclick = bootVM;
+
+        // Start
+        FS.init().then(() => loadEngineSystem(FS));
+    };
+
+})();
+</script>
+</body>
+</html>
