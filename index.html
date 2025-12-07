@@ -4,549 +4,469 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox Env [dev_mode]</title>
-    
+    <title>Winbox v3 [MX Style]</title>
+    <!-- ZIP Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
-        /* --- THEME: UTILITY 2000 (SILVER & BLUE) --- */
+        /* --- MACROMEDIA FLASH MX INSPIRED THEME --- */
         :root {
-            --bg-root: #808080;
-            --panel-face: #f1f1f1;
-            --border-light: #fff;
-            --border-dark: #404040;
-            --highlight: #000080; /* Classic Blue */
-            --selection: #ffec8b;
+            --bg-workspace: #999999;
+            --panel-bg: #f4f4f4;
+            --panel-header-grad-1: #e9e9e9;
+            --panel-header-grad-2: #cfcfcf;
+            --border-dark: #666666;
+            --border-focus: #333333;
+            --selection-blue: #316ac5;
+            --text-small: 10px;
         }
 
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
-            background: var(--bg-root);
-            font-family: 'Tahoma', 'Verdana', sans-serif;
+            background: var(--bg-workspace);
+            font-family: 'Verdana', sans-serif;
             font-size: 11px;
+            color: #000;
             overflow: hidden;
             display: flex; flex-direction: column;
+            user-select: none;
         }
 
-        /* --- LAYOUT GRID --- */
-        #viewport {
-            flex: 1; display: flex; padding: 5px; gap: 5px;
-            box-sizing: border-box;
+        /* --- UI LAYOUT --- */
+        #toolbar {
+            height: 24px; background: #e0e0e0; border-bottom: 1px solid #666;
+            display: flex; align-items: center; padding: 0 5px; gap: 4px;
         }
-        
-        /* --- GENERIC WINDOW/PANEL --- */
-        .win-box {
+
+        #workspace {
+            flex: 1; display: flex; padding: 3px; gap: 3px;
+        }
+
+        aside { width: 220px; display: flex; flex-direction: column; gap: 3px; }
+        section { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+
+        /* --- PANEL COMPONENT --- */
+        .mx-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-dark);
             display: flex; flex-direction: column;
-            background: var(--panel-face);
-            border: 2px solid var(--panel-face);
-            border-top-color: var(--border-light);
-            border-left-color: var(--border-light);
-            border-right-color: var(--border-dark);
-            border-bottom-color: var(--border-dark);
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         
-        .win-header {
-            background: linear-gradient(90deg, #000080, #4169e1);
-            color: white; padding: 3px 6px;
-            font-weight: bold; font-size: 10px;
-            display: flex; justify-content: space-between; align-items: center;
-            height: 16px;
-        }
-
-        .win-content {
-            flex: 1; position: relative; overflow: hidden;
-            display: flex; flex-direction: column; padding: 2px;
-        }
-
-        /* --- LEFT SIDEBAR (Stats + Files) --- */
-        aside { width: 240px; display: flex; flex-direction: column; gap: 5px; }
-
-        .meter-group { margin-bottom: 8px; border: 1px dotted #999; padding: 4px; background: #fff; }
-        .meter-bar { height: 10px; background: #ddd; border: 1px inset; position: relative; margin-top:2px; }
-        .meter-fill { height: 100%; width: 0%; transition: width 0.3s; }
-        
-        .file-browser {
-            flex: 1; background: #fff; border: 2px inset; 
-            overflow-y: scroll; list-style: none; padding: 0; margin: 0;
+        .mx-header {
+            background: linear-gradient(to bottom, var(--panel-header-grad-1), var(--panel-header-grad-2));
+            height: 18px; border-bottom: 1px solid #aaa;
+            display: flex; align-items: center; padding: 0 4px;
+            font-size: var(--text-small); font-weight: bold; color: #444;
             cursor: default;
         }
-        .file-browser li {
-            padding: 2px 4px; border-bottom: 1px dotted #eee; 
-            display: flex; justify-content: space-between;
+        /* The "Gripper" look */
+        .mx-header::before {
+            content: "::::";
+            color: #999; margin-right: 5px; letter-spacing: 1px;
         }
-        .file-browser li:hover { background: var(--highlight); color: #fff; }
         
-        .toolbar { display: flex; gap: 2px; margin-top: 5px; justify-content: center; }
+        .mx-body {
+            flex: 1; overflow: hidden; position: relative;
+            padding: 2px;
+        }
+
+        /* --- BUTTONS & CONTROLS --- */
         button {
-            border: 1pxoutset; background: #e4e4e4; font-size: 9px; cursor: pointer; padding: 2px 6px;
+            border: 1px solid #888; background: linear-gradient(#fff, #e4e4e4);
+            font-family: Verdana; font-size: 9px; padding: 2px 6px;
+            cursor: pointer; outline: none; border-radius: 1px;
         }
-        button:active { border-style: inset; padding: 3px 5px 1px 7px; } /* Pressed effect */
-
-        /* --- MAIN AREA (Viewer + Term) --- */
-        main { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+        button:active { background: #ddd; box-shadow: inset 1px 1px 1px #bbb; }
         
-        /* VIEWER/EDITOR AREA */
-        #display-port {
-            flex: 1; background: #888; border: 2px inset;
-            display: flex; flex-direction: column; overflow: hidden;
-            position: relative;
-        }
-        /* When rendering standard content */
-        .render-content { 
-            width: 100%; height: 100%; overflow: auto; background: white; border: none; 
-            display: block;
-        }
-        /* Text Editor specific */
-        textarea.editor-mode {
-            width: 100%; height: 100%; box-sizing: border-box; border: none; resize: none;
-            font-family: 'Courier New', monospace; font-size: 13px; background: #1a1a1a; color: #0f0;
-            padding: 5px; outline: none;
-        }
-        .editor-bar {
-            height: 24px; background: #ccc; border-bottom: 1px solid #999;
-            display: flex; align-items: center; padding: 0 5px; gap: 5px;
+        input[type="text"] {
+            border: 1px solid #777; font-family: 'Verdana'; font-size: 11px; padding: 2px;
         }
 
-        /* TERMINAL */
-        .term-wrap {
-            flex: 1; min-height: 150px; max-height: 300px;
-            background: #000; border: 2px inset; 
-            padding: 4px; font-family: 'Consolas', monospace; color: #ccc; 
-            overflow: hidden; display: flex; flex-direction: column;
+        /* --- FILE LIST --- */
+        ul#file-browser {
+            list-style: none; padding: 0; margin: 0; 
+            background: #fff; border: 1px solid #888; flex: 1;
+            overflow-y: scroll; font-size: 10px;
         }
-        #term-log { flex: 1; overflow-y: scroll; white-space: pre-wrap; font-size: 12px; }
-        .cl-green { color: lime; } .cl-yellow { color: yellow; } .cl-red { color: #f55; }
+        ul#file-browser li {
+            padding: 2px 5px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; justify-content: space-between;
+        }
+        ul#file-browser li:hover { background: #e3e3e3; }
+        ul#file-browser li.active { background: #ddeeff; border-color: #bcd; }
+
+        /* --- STAGE / VIEWER --- */
+        #stage {
+            width: 100%; height: 100%;
+            background: #aaa; 
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #666; overflow: hidden;
+            /* Checkerboard pattern for "Transparency" feel */
+            background-image: repeating-linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb), repeating-linear-gradient(45deg, #bbb 25%, #999 25%, #999 75%, #bbb 75%, #bbb);
+            background-position: 0 0, 10px 10px; background-size: 20px 20px;
+        }
+
+        /* Text Editor Style */
+        .editor-wrap {
+            width: 100%; height: 100%; display: flex; flex-direction: column; background: #fff;
+        }
+        textarea.code-view {
+            flex: 1; resize: none; border: none; font-family: 'Courier New', monospace; font-size: 12px;
+            padding: 5px; outline: none; background: #fff; color: #000;
+        }
+        .editor-controls {
+            background: #eee; border-top: 1px solid #ccc; padding: 2px; text-align: right;
+        }
+
+        /* --- TERMINAL (Property Inspector Style) --- */
+        #terminal-panel { height: 160px; } /* Fixed height like Properties panel */
+        #term-history {
+            background: #fff; color: #333; font-family: 'Courier New', monospace; font-size: 11px;
+            flex: 1; border: 1px solid #888; overflow-y: scroll; padding: 3px;
+        }
+        .log-ln { padding-left: 2px; border-bottom: 1px dotted #eee; }
+        .log-sys { color: #666; font-style: italic; }
+        .log-err { color: #cc0000; }
+        .log-in  { font-weight: bold; color: #000; margin-top: 4px; display: block; }
         
-        .input-line { display: flex; margin-top: 2px; border-top: 1px solid #333; padding-top:2px; }
-        #term-input { 
-            flex: 1; background: transparent; color: #fff; border: none; 
-            outline: none; font-family: inherit; margin-left: 5px;
+        #cmd-row {
+            margin-top: 3px; display: flex; gap: 4px; align-items: center;
+            font-size: 10px; color: #444;
         }
+        #cmd-input { flex: 1; }
+
+        /* --- METER BARS --- */
+        .meter-box { border: 1px solid #888; height: 10px; background: #fff; width: 100%; margin-bottom: 4px; position:relative; }
+        .meter-fill { height: 100%; background: linear-gradient(90deg, #99ccff, #3366cc); width: 0%; }
+        .meter-lbl { font-size: 9px; color: #666; margin-bottom: 1px; display: flex; justify-content: space-between; }
 
     </style>
 </head>
 <body>
 
-<div id="viewport">
-    
-    <!-- LEFT PANE -->
-    <aside>
-        <div class="win-box" style="height: 100%;">
-            <div class="win-header">
-                <span>SYSTEM & FILES</span>
-                <span>x</span>
-            </div>
-            <div class="win-content">
-                <!-- STATS -->
-                <div class="meter-group">
-                    <div style="display:flex; justify-content:space-between"><span>RAM (Virtual)</span><span id="st-ram">---</span></div>
-                    <div class="meter-bar"><div id="br-ram" class="meter-fill" style="background:orange;"></div></div>
-                    
-                    <div style="display:flex; justify-content:space-between; margin-top:4px;"><span>STORAGE (10GB)</span><span id="st-dsk">0%</span></div>
-                    <div class="meter-bar"><div id="br-dsk" class="meter-fill" style="background:navy;"></div></div>
-                </div>
+<!-- TOP TOOLBAR -->
+<div id="toolbar">
+    <div style="font-weight:bold; color:#444; margin-right:10px;">WINBOX MX</div>
+    <div style="border-left: 1px solid #999; height: 14px; margin: 0 5px;"></div>
+    <button onclick="term.inject('upload')">Import</button>
+    <button onclick="term.inject('create untitled.txt')">New File</button>
+    <button onclick="term.inject('format')">Wipe</button>
+    <input type="file" id="sys_upload_shim" multiple style="display:none">
+</div>
 
-                <!-- ACTIONS -->
-                <div class="toolbar" style="margin-bottom:4px;">
-                    <button id="btn-create" onclick="termInput('create untitled.txt')">NEW</button>
-                    <button id="btn-imp" onclick="io.uiUpload()">UPLOAD</button>
-                    <button id="btn-fmt" onclick="termInput('format')" style="color:#a00">FORMAT</button>
-                    <input type="file" id="sys-up-inv" multiple style="display:none">
-                </div>
-                
-                <!-- LIST -->
-                <ul id="file-list" class="file-browser"></ul>
+<!-- WORKSPACE -->
+<div id="workspace">
+
+    <!-- LEFT DOCK -->
+    <aside>
+        <!-- SYSTEM MON -->
+        <div class="mx-panel" style="height: auto;">
+            <div class="mx-header">Resource Monitor</div>
+            <div class="mx-body" style="padding: 6px;">
+                <div class="meter-lbl"><span>RAM Allocation</span><span id="lbl_ram">-</span></div>
+                <div class="meter-box"><div id="bar_ram" class="meter-fill"></div></div>
+
+                <div class="meter-lbl"><span>Virtual CPU</span><span id="lbl_cpu">-</span></div>
+                <div class="meter-box"><div id="bar_cpu" class="meter-fill"></div></div>
+
+                <div class="meter-lbl"><span>Drive Space</span><span id="lbl_dsk">Calc..</span></div>
+                <div class="meter-box"><div id="bar_dsk" class="meter-fill"></div></div>
+            </div>
+        </div>
+
+        <!-- FILES -->
+        <div class="mx-panel" style="flex: 1;">
+            <div class="mx-header">Assets (Local Drive)</div>
+            <div class="mx-body" style="padding: 0;">
+                <ul id="file-browser"></ul>
             </div>
         </div>
     </aside>
 
-    <!-- RIGHT PANE -->
-    <main>
+    <!-- CENTER STAGE -->
+    <section>
         
-        <!-- VISUAL VIEWER / EDITOR -->
-        <div class="win-box" style="flex:2;">
-            <div class="win-header">
-                <span>ACTIVE DISPLAY</span>
-                <span id="disp-fn">idle</span>
-            </div>
-            <div class="win-content" style="background:#808080; padding:0;">
-                <div id="display-port">
-                    <div style="display:grid; place-items:center; height:100%; color:#ddd; font-weight:bold; text-shadow:1px 1px 0 #000;">
-                        NO ACTIVE PROCESS
+        <!-- VISUAL RENDERER -->
+        <div class="mx-panel" style="flex: 1;">
+            <div class="mx-header"><span id="stage-title">Stage: [Empty]</span></div>
+            <div class="mx-body" style="background:#808080; padding:10px; display:flex;">
+                <div id="stage">
+                    <div style="text-align:center; color:#555; font-size:10px;">
+                        No document open.<br>Use console 'run' or 'view' commands.
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- CLI -->
-        <div class="win-box" style="height: auto;">
-            <div class="win-header">CMD.EXE</div>
-            <div class="term-wrap">
-                <div id="term-log">Winbox [Version 3.1.2000]<br>(C) Corp.<br><br>Type "help" for new commands.<br></div>
-                <div class="input-line">
-                    <span class="cl-green">C:\USERS\ADMIN&gt;</span>
-                    <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+        <!-- CONSOLE / PROPERTIES -->
+        <div class="mx-panel" id="terminal-panel">
+            <div class="mx-header">Output / Console</div>
+            <div class="mx-body" style="display: flex; flex-direction: column;">
+                <div id="term-history">
+                    <div class="log-sys">Winbox MX Runtime Environment loaded...</div>
+                    <div class="log-sys">FileSystem: IndexedDB Linked.</div>
+                </div>
+                <div id="cmd-row">
+                    <span>&gt;</span>
+                    <input type="text" id="cmd-input" spellcheck="false" autocomplete="off" placeholder="Enter command...">
                 </div>
             </div>
         </div>
 
-    </main>
-
+    </section>
 </div>
 
+<!-- KERNEL -->
 <script>
-/** 
- * WINBOX V3 KERNEL
- * Includes Editor, Runner, Downloader
+/**
+ * WINBOX MX CLIENT KERNEL
+ * Aesthetics: Flash MX | Logic: Vanilla JS + IDB
  */
 
-// Global Utils
-const $ = (id) => document.getElementById(id);
-const termInput = (txt) => { const i = $('term-input'); i.value = txt; i.focus(); };
-
-// Constants
-const SYS = {
-    DB: 'WINBOX_V3',
-    STORE: 'DISK_0',
-    LIMIT: 10 * 1024 * 1024 * 1024
+// --- 1. GLOBALS & DOM CACHE ---
+const dom = {
+    history: document.getElementById('term-history'),
+    input: document.getElementById('cmd-input'),
+    stage: document.getElementById('stage'),
+    title: document.getElementById('stage-title'),
+    fileList: document.getElementById('file-browser'),
+    uploadShim: document.getElementById('sys_upload_shim')
 };
 
-// ----------------------------------
-// 1. TERMINAL SYSTEM
-// ----------------------------------
-const term = {
-    logBox: $('term-log'),
-    input: $('term-input'),
+const DB_CFG = { name: "WINBOX_MX_VOL", store: "DATA_LAYER", limit: 10 * 1024 * 1024 * 1024 };
+let db = null;
 
+// --- 2. FILESYSTEM CONTROLLER ---
+const fs = {
     init: function() {
-        this.input.addEventListener('keydown', e => {
-            if(e.key === 'Enter') this.process();
+        let req = indexedDB.open(DB_CFG.name, 4);
+        req.onupgradeneeded = e => {
+            let d = e.target.result;
+            if(!d.objectStoreNames.contains(DB_CFG.store)) d.createObjectStore(DB_CFG.store, {keyPath:'name'});
+        };
+        req.onsuccess = e => {
+            db = e.target.result;
+            this.scan();
+            sys.boot();
+            
+            // Upload Binding
+            dom.uploadShim.onchange = (ev) => this.handleUpload(ev.target.files);
+        };
+        req.onerror = () => term.log("FS CRITICAL: Access Denied.", "err");
+    },
+
+    save: function(name, blob, typeOverride) {
+        let tx = db.transaction([DB_CFG.store], 'readwrite');
+        tx.oncomplete = () => this.scan();
+        tx.objectStore(DB_CFG.store).put({
+            name: name, 
+            data: blob, 
+            size: blob.size, 
+            type: typeOverride || blob.type,
+            date: new Date()
         });
-        window.onclick = () => { if(window.getSelection().toString()==='') this.input.focus(); };
-    },
-
-    print: function(txt, cssClass='cl-green') {
-        const ln = document.createElement('div');
-        ln.innerHTML = txt;
-        ln.className = cssClass;
-        this.logBox.appendChild(ln);
-        this.logBox.scrollTop = this.logBox.scrollHeight;
-    },
-
-    process: function() {
-        const val = this.input.value.trim();
-        if(!val) return;
-        this.input.value = '';
-        
-        this.print(`C:\\> ${val}`, 'white');
-        const [cmd, ...args] = val.split(' ');
-        const target = args.join(' '); // Rejoin remaining args as filename usually
-
-        // Command Switch
-        switch(cmd.toLowerCase()) {
-            case 'help':
-                this.print("FILESYSTEM CMDs:", "cl-yellow");
-                this.print("  ls / dir       : List files");
-                this.print("  create [file]  : Create empty file");
-                this.print("  edit [file]    : Open Text Editor");
-                this.print("  view [file]    : View Image/Text (Read Only)");
-                this.print("  run [file]     : Execute HTML/Script");
-                this.print("  download [file]: Save to real computer");
-                this.print("  rm [file]      : Delete file");
-                this.print("  upload         : Import file prompt");
-                this.print("  format         : Wipe Disk");
-                break;
-            case 'cls':
-            case 'clear':
-                this.logBox.innerHTML = '';
-                break;
-            case 'ls':
-            case 'dir':
-                io.list();
-                break;
-            case 'upload':
-                io.uiUpload();
-                break;
-            case 'create':
-            case 'touch':
-            case 'mkfile':
-                if(!target) return this.print("Error: Specify filename.", "cl-red");
-                io.create(target);
-                break;
-            case 'rm':
-            case 'del':
-                if(!target) return this.print("Error: Specify filename.", "cl-red");
-                io.delete(target);
-                break;
-            case 'format':
-                io.format();
-                break;
-            case 'run':
-            case 'view':
-            case 'open':
-                if(!target) return this.print("Error: Specify filename.", "cl-red");
-                io.load(target, 'view');
-                break;
-            case 'edit':
-            case 'nano':
-                if(!target) return this.print("Error: Specify filename.", "cl-red");
-                io.load(target, 'edit');
-                break;
-            case 'download':
-            case 'dl':
-                if(!target) return this.print("Error: Specify filename.", "cl-red");
-                io.download(target);
-                break;
-            default:
-                this.print(`'${cmd}' is not recognized as a command.`, "cl-red");
-        }
-    }
-};
-
-// ----------------------------------
-// 2. FILESYSTEM (INDEXED DB)
-// ----------------------------------
-const io = {
-    db: null,
-
-    boot: function() {
-        const r = indexedDB.open(SYS.DB, 3);
-        r.onupgradeneeded = e => {
-            const d = e.target.result;
-            if(!d.objectStoreNames.contains(SYS.STORE)) d.createObjectStore(SYS.STORE, { keyPath: 'name' });
-        };
-        r.onsuccess = e => {
-            this.db = e.target.result;
-            this.list();
-            stats.loop();
-            // Bind upload
-            $('sys-up-inv').onchange = (ev) => this.handleFiles(ev.target.files);
-        };
-        r.onerror = () => term.print("DB IO ERROR. Privacy Mode blocks storage?", "cl-red");
-    },
-
-    // --- WRITE OPS ---
-    save: function(name, blob, silent=false) {
-        const tx = this.db.transaction([SYS.STORE], 'readwrite');
-        const meta = { name: name, type: blob.type, size: blob.size, data: blob, date: new Date() };
-        
-        tx.objectStore(SYS.STORE).put(meta);
-        tx.oncomplete = () => {
-            if(!silent) term.print(`Written: ${name} (${stats.fmt(blob.size)})`);
-            this.list();
-        };
-        tx.onerror = () => term.print(`Write failed: ${name}`, 'cl-red');
-    },
-
-    create: function(name) {
-        // Create empty text file
-        const b = new Blob([""], {type: "text/plain"});
-        this.save(name, b);
-    },
-
-    delete: function(name) {
-        const tx = this.db.transaction([SYS.STORE], 'readwrite');
-        tx.objectStore(SYS.STORE).delete(name);
-        tx.oncomplete = () => { term.print(`Deleted: ${name}`); this.list(); };
-    },
-
-    format: function() {
-        if(!confirm("WIPE ALL DATA?")) return;
-        const tx = this.db.transaction([SYS.STORE], 'readwrite');
-        tx.objectStore(SYS.STORE).clear();
-        tx.oncomplete = () => { term.print("Disk formatted."); this.list(); };
-    },
-
-    // --- READ OPS ---
-    list: function() {
-        const ul = $('file-list'); ul.innerHTML = '';
-        let total = 0;
-        
-        const tx = this.db.transaction([SYS.STORE], 'readonly');
-        tx.objectStore(SYS.STORE).openCursor().onsuccess = e => {
-            const c = e.target.result;
-            if(c) {
-                total += c.value.size;
-                const li = document.createElement('li');
-                li.innerHTML = `<span>${c.value.name}</span><small>${stats.fmt(c.value.size)}</small>`;
-                li.onclick = () => termInput(`view ${c.value.name}`); // Shortcut
-                ul.appendChild(li);
-                c.continue();
-            } else {
-                stats.updDisk(total);
-            }
-        };
+        // Silent success for batch speed, list updates on scan
     },
 
     load: function(name, mode) {
-        const tx = this.db.transaction([SYS.STORE], 'readonly');
-        tx.objectStore(SYS.STORE).get(name).onsuccess = e => {
-            if(e.target.result) ui.render(e.target.result, mode);
-            else term.print(`File '${name}' not found.`, 'cl-red');
+        db.transaction([DB_CFG.store], 'readonly').objectStore(DB_CFG.store).get(name).onsuccess = e => {
+            if(e.target.result) renderer.draw(e.target.result, mode);
+            else term.log("Error: File 404.", "err");
         };
     },
 
-    download: function(name) {
-        const tx = this.db.transaction([SYS.STORE], 'readonly');
-        tx.objectStore(SYS.STORE).get(name).onsuccess = e => {
-            const res = e.target.result;
-            if(res) {
-                const url = URL.createObjectURL(res.data);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                term.print(`Downloading: ${name}...`, 'cl-green');
+    del: function(name) {
+        let tx = db.transaction([DB_CFG.store], 'readwrite');
+        tx.oncomplete = () => { term.log("Deleted: "+name); this.scan(); };
+        tx.objectStore(DB_CFG.store).delete(name);
+    },
+
+    scan: function() {
+        dom.fileList.innerHTML = '';
+        let tx = db.transaction([DB_CFG.store], 'readonly');
+        let total = 0;
+        tx.objectStore(DB_CFG.store).openCursor().onsuccess = e => {
+            let cur = e.target.result;
+            if(cur) {
+                total += cur.value.size;
+                let li = document.createElement('li');
+                li.innerHTML = `<span>${cur.value.name}</span> <span style="color:#888">${sys.b2s(cur.value.size)}</span>`;
+                li.onclick = () => fs.load(cur.value.name, 'view'); // Click to quickview
+                dom.fileList.appendChild(li);
+                cur.continue();
             } else {
-                term.print("File not found.", "cl-red");
+                sys.usage(total);
             }
         };
     },
 
-    // --- UPLOAD HANDLER ---
-    uiUpload: () => $('sys-up-inv').click(),
+    format: function() {
+        if(!confirm("Warning: This will format the Virtual Disk. Continue?")) return;
+        let tx = db.transaction([DB_CFG.store], 'readwrite');
+        tx.oncomplete = () => { term.log("Volume Formatted."); this.scan(); };
+        tx.objectStore(DB_CFG.store).clear();
+    },
 
-    handleFiles: function(list) {
-        if(!list.length) return;
-        Array.from(list).forEach(f => {
-            // ZIP CHECK
+    handleUpload: function(files) {
+        if(!files.length) return;
+        term.log("Importing "+files.length+" item(s)...");
+        Array.from(files).forEach(f => {
             if(f.name.endsWith('.zip') && window.JSZip) {
-                if(confirm(`Unpack ${f.name}?`)) {
-                    new JSZip().loadAsync(f).then(zip => {
-                        zip.forEach((p, ent) => {
-                            if(!ent.dir) ent.async('blob').then(b => this.save(ent.name, b));
-                        });
-                        term.print("Batch unzip complete.", "cl-green");
-                    });
-                    return; // Don't save the raw zip
+                if(confirm("Expand Archive: "+f.name+"?")) {
+                    this.unzip(f);
+                    return;
                 }
             }
             this.save(f.name, f);
         });
-        $('sys-up-inv').value = ""; // Reset
+        dom.uploadShim.value = ''; // Reset
+    },
+
+    unzip: function(fileBlob) {
+        term.log("Unpacking Archive...");
+        new JSZip().loadAsync(fileBlob).then(zip => {
+            zip.forEach((path, entry) => {
+                if(!entry.dir) entry.async('blob').then(b => this.save(entry.name, b));
+            });
+            term.log("Unpack Complete.");
+        });
     }
 };
 
-// ----------------------------------
-// 3. UI RENDERER & EDITOR
-// ----------------------------------
-const ui = {
-    port: $('display-port'),
-    lbl: $('disp-fn'),
+// --- 3. STAGE RENDERER & EDITOR ---
+const renderer = {
+    draw: function(file, mode) {
+        dom.stage.innerHTML = ''; // Wipe stage
+        dom.stage.style.background = '#fff';
+        dom.title.innerText = `Stage: ${file.name} [${mode.toUpperCase()}]`;
 
-    render: function(file, mode) {
-        this.port.innerHTML = '';
-        this.lbl.innerText = file.name + (mode==='edit'?' [EDIT]':' [READ]');
-
-        // EDITOR MODE
+        // EDITOR LOGIC
         if(mode === 'edit') {
-            // Text only check
-            if(!file.type.startsWith('text') && !file.name.match(/\.(js|txt|html|css|json|md|log)$/)) {
-                return term.print("Cannot edit binary file.", "cl-red");
-            }
-
-            // Reader
-            const r = new FileReader();
-            r.onload = e => {
-                const str = e.target.result;
-                
-                // Build Editor Interface
-                const bar = document.createElement('div');
-                bar.className = 'editor-bar';
-                const saveBtn = document.createElement('button');
-                saveBtn.innerText = "SAVE CHANGES";
-                
-                const area = document.createElement('textarea');
-                area.className = 'editor-mode';
-                area.value = str;
-
-                // Save Handler
-                saveBtn.onclick = () => {
-                    const newBlob = new Blob([area.value], {type: 'text/plain'});
-                    io.save(file.name, newBlob, true);
-                    term.print(`Saved changes to ${file.name}`, 'cl-green');
+            if(file.type.match(/text|json|javascript|xml|html/) || file.name.match(/\.(txt|md|js|log)$/)) {
+                let r = new FileReader();
+                r.onload = e => {
+                    let wrap = document.createElement('div'); wrap.className = 'editor-wrap';
+                    let ta = document.createElement('textarea'); ta.className = 'code-view';
+                    ta.value = e.target.result;
+                    
+                    let bar = document.createElement('div'); bar.className = 'editor-controls';
+                    let btn = document.createElement('button'); btn.innerText = "Commit Changes";
+                    btn.onclick = () => {
+                        let nb = new Blob([ta.value], {type: file.type});
+                        fs.save(file.name, nb);
+                        term.log("File saved.");
+                    };
+                    
+                    wrap.appendChild(ta);
+                    bar.appendChild(btn);
+                    wrap.appendChild(bar);
+                    dom.stage.appendChild(wrap);
                 };
-
-                bar.appendChild(saveBtn);
-                bar.appendChild(document.createTextNode(" (CTRL+S unavailable, click Save)"));
-                this.port.appendChild(bar);
-                this.port.appendChild(area);
-            };
-            r.readAsText(file.data);
+                r.readAsText(file.data);
+            } else {
+                term.log("Cannot edit binary file.", "err");
+            }
             return;
         }
 
-        // VIEW/RUN MODE
-        if(file.type.startsWith('image/')) {
-            const img = document.createElement('img');
+        // DOWNLOAD LOGIC
+        if(mode === 'dl') {
+            let url = URL.createObjectURL(file.data);
+            let a = document.createElement('a'); a.href = url; a.download = file.name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            term.log("Starting download...");
+            return;
+        }
+
+        // VIEW / RUN LOGIC
+        if(file.name.match(/\.(png|jpg|gif|jpeg|webp)$/i)) {
+            let img = document.createElement('img');
             img.src = URL.createObjectURL(file.data);
-            img.style.cssText = "max-width:100%; max-height:100%; object-fit:contain; margin:auto;";
-            this.port.appendChild(img);
-        }
-        else if(file.name.toLowerCase().endsWith('.html') || file.type === 'text/html') {
-             // Safe Render in Sandbox Iframe
-             const r = new FileReader();
-             r.onload = e => {
-                 const ifr = document.createElement('iframe');
-                 ifr.className = 'render-content';
-                 ifr.srcdoc = e.target.result; // "Running" the HTML
-                 ifr.sandbox = "allow-scripts"; // allow JS but restrict external
-                 this.port.appendChild(ifr);
-                 term.print("Executed HTML document.", "cl-green");
-             };
-             r.readAsText(file.data);
-        }
-        else if(file.type.startsWith('text/') || file.name.match(/\.(txt|md|js|css|json)$/)) {
-            // Read-Only View
-            const r = new FileReader();
+            img.style.maxWidth="100%"; img.style.maxHeight="100%";
+            dom.stage.appendChild(img);
+        } else if(mode === 'run' && file.name.endsWith('.html')) {
+            let r = new FileReader();
             r.onload = e => {
-                 const pre = document.createElement('pre');
-                 pre.className = 'render-content';
-                 pre.style.padding = '10px';
-                 pre.textContent = e.target.result;
-                 this.port.appendChild(pre);
+                let fr = document.createElement('iframe');
+                fr.style.width="100%"; fr.style.height="100%"; fr.style.border="none";
+                fr.srcdoc = e.target.result;
+                fr.sandbox = "allow-scripts"; // Safety
+                dom.stage.appendChild(fr);
+            };
+            r.readAsText(file.data);
+        } else {
+            // Text View Fallback
+            let r = new FileReader();
+            r.onload = e => {
+                let pre = document.createElement('pre');
+                pre.style.margin="0"; pre.style.padding="10px"; pre.style.overflow="auto"; pre.style.width="100%"; pre.style.height="100%";
+                // Detect binary mess roughly
+                if(e.target.result.substring(0,50).match(/[\x00-\x08]/)) {
+                    pre.innerText = "[Binary Data - Preview Unavailable]\nSize: " + sys.b2s(file.size);
+                    pre.style.textAlign = "center"; pre.style.marginTop="20px";
+                } else {
+                    pre.innerText = e.target.result;
+                }
+                dom.stage.appendChild(pre);
             };
             r.readAsText(file.data);
         }
-        else {
-             this.port.innerHTML = "<div style='margin:auto;color:#333'>BINARY FILE (Download to view)</div>";
+    }
+};
+
+// --- 4. TERMINAL & SYSTEM CONTROLLER ---
+const term = {
+    inject: (txt) => { dom.input.value = txt; term.exec(); }, // Shortcut for buttons
+    log: (txt, type) => {
+        let div = document.createElement('div');
+        div.innerText = txt;
+        div.className = "log-ln " + (type === 'err' ? 'log-err' : 'log-sys');
+        dom.history.appendChild(div);
+        dom.history.scrollTop = dom.history.scrollHeight;
+    },
+    exec: () => {
+        let val = dom.input.value.trim();
+        if(!val) return;
+        
+        let echo = document.createElement('span'); echo.innerText = "> " + val; echo.className="log-in";
+        dom.history.appendChild(echo);
+        dom.input.value = '';
+
+        let [cmd, ...args] = val.split(" ");
+        let param = args.join(" ");
+
+        switch(cmd.toLowerCase()) {
+            case 'help': 
+                term.log("Commands: create, edit, run, download, rm, format, upload, ls"); break;
+            case 'ls': fs.scan(); break;
+            case 'upload': dom.uploadShim.click(); break;
+            case 'create': 
+                if(param) fs.save(param, new Blob(["// New File"], {type:'text/plain'})); 
+                else term.log("Err: create [filename]", "err");
+                break;
+            case 'rm':
+                if(param) fs.del(param); else term.log("Err: rm [filename]", "err"); break;
+            case 'edit':
+                if(param) fs.load(param, 'edit'); else term.log("Err: edit [filename]", "err"); break;
+            case 'view':
+            case 'open':
+                if(param) fs.load(param, 'view'); else term.log("Err: view [filename]", "err"); break;
+            case 'run':
+                if(param) fs.load(param, 'run'); else term.log("Err: run [filename]", "err"); break;
+            case 'download':
+            case 'dl':
+                if(param) fs.load(param, 'dl'); else term.log("Err: dl [filename]", "err"); break;
+            case 'format': fs.format(); break;
+            default: term.log("Bad Command.", "err");
         }
     }
 };
 
-// ----------------------------------
-// 4. SYSTEM STATS
-// ----------------------------------
-const stats = {
-    loop: function() {
-        $('st-ram').innerText = (navigator.deviceMemory||8) + "GB";
-        setInterval(() => {
-            // Fake fluctuating CPU load
-            let h = new Date();
-            let n = (h.getSeconds() % 10) * 10 + Math.random()*20;
-            $('br-ram').style.width = n + "%";
-        }, 1000);
-    },
-    updDisk: function(used) {
-        const p = (used/SYS.LIMIT)*100;
-        $('br-dsk').style.width = p + "%";
-        $('st-dsk').innerText = this.fmt(used);
-    },
-    fmt: function(b) {
-        if(b<1024) return b+"B";
-        if(b<1024*1024) return (b/1024).toFixed(1)+"KB";
-        return (b/(1024*1024)).toFixed(1)+"MB";
-    }
-};
-
-// BOOT
-window.onload = () => {
-    term.init();
-    io.boot();
-};
-</script>
-</body>
-</html>
+// --- 5. STATS & UTILS ---
+const sys = {
+    boot: () => {
+        dom.input.addEventListener('keydown', e => { if(e.key==='Enter') term.exec(); });
+        
+        // Sim Hardware
+        document.getElementById('lbl_ram').innerText = (navigator.deviceMemory||8) + " GB (Shared)";
+        setInterv
