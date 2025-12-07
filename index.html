@@ -331,4 +331,174 @@ To fix "Engine Missing" / "No V86Starter":
         },
         mkdir: (n) => {
             let path = State.path + n + "/";
-            let
+            let e = { id:path, name:n, parent:State.path, type:"dir", size:0 };
+            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).put(e).onsuccess = () => FS.scan();
+        },
+        del: (id) => {
+            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).delete(id).onsuccess = () => FS.scan();
+        },
+        format: () => {
+            FS.db.transaction([C.STORE],"readwrite").objectStore(C.STORE).clear().onsuccess = () => window.location.reload();
+        },
+        create: (name) => {
+             const b = new Blob(["// New File"], {type:"text/plain"});
+             const path = State.path + name;
+             const entry = { id:path, name:name, parent:State.path, type:"text/plain", data:b, size:b.size, date:new Date() };
+             const tx = FS.db.transaction([C.STORE], "readwrite");
+             tx.objectStore(C.STORE).put(entry);
+             tx.oncomplete = () => { Term.log("Created: "+name); FS.scan(); };
+        },
+        scan: () => {
+            document.getElementById("file-list").innerHTML = "";
+            document.getElementById("path-out").innerText = State.path;
+            let tot = 0;
+            const tx = FS.db.transaction([C.STORE], "readonly");
+            tx.objectStore(C.STORE).openCursor().onsuccess = e => {
+                const c = e.target.result;
+                if(c) {
+                    let i = c.value;
+                    tot += i.size || 0;
+                    if(i.parent === State.path && i.id !== "/") UI.addItem(i);
+                    // OS Check
+                    if(!State.os && i.name.match(/\.(iso|img)$/i)) UI.mount(i);
+                    c.continue();
+                } else {
+                    document.getElementById("lbl-dsk").innerText = (tot/1048576).toFixed(1) + " MB";
+                    document.getElementById("bar-dsk").style.width = (tot/10e9)*100 + "%";
+                }
+            };
+        }
+    };
+
+    // --- UI ---
+    const UI = {
+        addItem: (i) => {
+            const li = document.createElement("li"); li.className = "item";
+            const isD = i.type === "dir";
+            li.innerHTML = `<div class="ico ${isD?'ico-d':'ico-f'}"></div><span>${i.name}</span>`;
+            li.onclick = () => { document.querySelectorAll(".sel").forEach(x=>x.classList.remove("sel")); li.classList.add("sel"); };
+            li.ondblclick = () => { isD ? (State.path = i.id, FS.scan()) : Viewer.show(i); };
+            li.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Delete "+i.name+"?")) FS.del(i.id); };
+            document.getElementById("file-list").appendChild(li);
+        },
+        mount: (i) => {
+            State.os = i;
+            document.getElementById("mod-boot").classList.add("active");
+            document.getElementById("lbl-boot").innerText = i.name;
+            document.getElementById("btn-run").classList.remove("hidden");
+        },
+        up: () => {
+            if(State.path==="/") return;
+            let p = State.path.split("/").filter(x=>x); p.pop();
+            State.path = p.length ? "/"+p.join("/")+"/" : "/";
+            FS.scan();
+        }
+    };
+
+    const Viewer = {
+        show: (i) => {
+            const v = document.getElementById("visual"); v.innerHTML = "";
+            document.getElementById("lbl-view").innerText = "View: " + i.name;
+            if(i.type.includes("text") || i.name.match(/\.(txt|js|md)$/i)) {
+                let r=new FileReader();
+                r.onload=e=>{
+                    let t=document.createElement("textarea"); t.className="txt-view"; t.value=e.target.result; t.readOnly=true; v.appendChild(t);
+                };
+                r.readAsText(i.data);
+            } else v.innerHTML="<div style='color:#ccc; padding:20px'>Binary File</div>";
+        }
+    };
+
+    // --- BOOTER ---
+    async function boot() {
+        if(!window.V86Starter) return Term.err("Engine is NOT loaded. See Monitor.");
+        if(!State.os) return Term.err("No Disk Mounted.");
+        if(State.running) return;
+
+        document.getElementById("visual").innerHTML = "";
+        
+        let config = {
+            memory_size: 128*1024*1024,
+            vga_memory_size: 8*1024*1024,
+            screen_container: document.getElementById("visual"),
+            autostart: true
+        };
+
+        // Determine if using local blob drivers or CDN defaults
+        Term.log("Resolving Drivers...");
+        
+        const getBlob = async (name) => {
+            let f = await FS.getFile("/"+name);
+            return f ? URL.createObjectURL(f.data) : null;
+        }
+
+        // Try local overrides
+        let w = await getBlob("v86.wasm");
+        let b = await getBlob("seabios.bin");
+        let v = await getBlob("vgabios.bin");
+
+        // Paths: Prefer Local Blob > CDN
+        config.wasm_path = w || "https://unpkg.com/v86@latest/build/v86.wasm";
+        config.bios = { url: b || "https://unpkg.com/v86@latest/bios/seabios.bin" };
+        config.vga_bios = { url: v || "https://unpkg.com/v86@latest/bios/vgabios.bin" };
+
+        Term.log("WASM Source: " + (w ? "Local" : "CDN"));
+
+        // OS
+        if(State.os.name.match(/\.iso$/i)) config.cdrom = { buffer: State.os.data };
+        else config.hda = { buffer: State.os.data };
+
+        try {
+            window.emulator = new V86Starter(config);
+            State.running = true;
+            document.getElementById("lbl-view").innerText = "Viewport [RUNNING]";
+            document.getElementById("indicator").className = "on";
+        } catch(e) { Term.err(e.message); }
+    }
+
+    const Term = {
+        log: t => { let d=document.createElement("div"); d.innerText="> "+t; document.getElementById("term-log").appendChild(d); },
+        err: t => { let d=document.createElement("div"); d.innerText="! "+t; d.style.color="#f00"; document.getElementById("term-log").appendChild(d); }
+    };
+
+    window.onload = () => {
+        // Events
+        document.getElementById("btn-imp").onclick=()=>document.getElementById("sys-file").click();
+        document.getElementById("sys-file").onchange=(e)=>{ Array.from(e.target.files).forEach(f=>FS.put(f)); e.target.value=""; };
+        document.getElementById("btn-mkdir").onclick=()=>{let n=prompt("Name:"); if(n)FS.mkdir(n);};
+        document.getElementById("btn-fmt").onclick=FS.format;
+        document.getElementById("btn-up").onclick=UI.up;
+        document.getElementById("btn-run").onclick=boot;
+        
+        // Console Parser
+        document.getElementById("term-in").onkeydown = (e) => {
+            if(e.key === "Enter") {
+                let v = e.target.value.trim();
+                let [c, arg] = v.split(" ");
+                if(c==="ls") FS.scan();
+                else if(c==="create" && arg) FS.create(arg);
+                else if(c==="mkdir" && arg) FS.mkdir(arg);
+                else if(c==="format") FS.format();
+                else Term.log(v);
+                e.target.value = "";
+            }
+        };
+
+        // CPU Pulse
+        setInterval(() => {
+            let r = State.running ? Math.random()*40+20 : 0;
+            document.getElementById("bar-cpu").style.width = r + "%";
+            document.getElementById("lbl-cpu").innerText = State.running?"RUN":"IDLE";
+            let d = new Date(); document.getElementById("clock").innerText = d.getHours()+":"+d.getMinutes().toString().padStart(2,'0');
+            document.getElementById("lbl-ram").innerText=(navigator.deviceMemory||4)+"GB";
+            document.getElementById("bar-ram").style.width="40%";
+        }, 1000);
+
+        // Start
+        FS.init().then(() => monitorEngine());
+    };
+
+})();
+</script>
+</body>
+</html>
