@@ -2,42 +2,46 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winbox MX8 [Resourced]</title>
+    <!-- Updated CSP: Allows UNPKG scripts/styles, BLOBs for the emulator, and DATA images -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com https://cdnjs.cloudflare.com;">
+    <title>Winbox MX [Cloud Engine]</title>
+    
+    <!-- 1. JSZIP for extracting files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- 2. V86 Emulator Engine (Direct from CDN) -->
+    <script src="https://unpkg.com/v86@latest/build/libv86.js"></script>
 
     <style>
-        /* --- THEME: INDUSTRIAL 2000 --- */
+        /* --- THEME: INDUSTRIAL MX (2004) --- */
         :root {
-            --bg-body: #999;
+            --bg-root: #999;
             --panel-face: #f4f4f4;
             --border: #666;
-            --header-light: #e0e0e0;
-            --header-dark: #cccccc;
-            --accent: #003399; /* Tech Blue */
+            --header-grad-1: #e2e2e2;
+            --header-grad-2: #cccccc;
+            --blue-select: #003399; 
             --font-ui: 'Verdana', sans-serif;
-            --font-mono: 'Courier New', monospace;
+            --font-term: 'Courier New', monospace;
         }
 
         * { box-sizing: border-box; }
         
         html, body {
             margin: 0; padding: 0; height: 100%; width: 100%;
-            background: var(--bg-body); font-family: var(--font-ui); font-size: 11px;
+            background: var(--bg-root); font-family: var(--font-ui); font-size: 11px;
             display: flex; flex-direction: column; overflow: hidden;
             user-select: none;
         }
 
-        /* --- TOOLBAR --- */
+        /* --- HEADER --- */
         #toolbar {
             height: 28px; background: #d0d0d0; border-bottom: 1px solid #777;
-            display: flex; align-items: center; padding: 0 8px; gap: 8px;
-            box-shadow: inset 0 1px 0 #fff; z-index: 5;
+            display: flex; align-items: center; padding: 0 8px; gap: 8px; z-index: 10;
         }
-
+        
         .mx-btn {
-            background: linear-gradient(#fff, #ddd); border: 1px solid #777;
+            background: linear-gradient(#fff, #e0e0e0); border: 1px solid #777;
             padding: 3px 10px; font-size: 10px; color: #222; cursor: pointer;
         }
         .mx-btn:active { background: #ccc; box-shadow: inset 1px 1px 2px #999; }
@@ -55,7 +59,7 @@
         
         .p-head {
             height: 20px; 
-            background: linear-gradient(to bottom, var(--header-light), var(--header-dark));
+            background: linear-gradient(to bottom, var(--header-grad-1), var(--header-grad-2));
             border-bottom: 1px solid #999;
             display: flex; align-items: center; padding: 0 5px;
             font-weight: bold; color: #444; font-size: 10px; text-transform: uppercase;
@@ -69,121 +73,99 @@
         .col-center { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         .col-right { width: 180px; display: flex; flex-direction: column; gap: 4px; }
 
-        /* --- STAT BARS (Resource Center) --- */
-        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #f0f0f0; }
-        
-        .stat-row { font-size: 9px; color: #666; display: flex; justify-content: space-between; margin-bottom: 2px; }
-        
-        .meter-shell {
-            height: 10px; border: 1px solid #999; background: #fff; width: 100%; position: relative;
-        }
-        .meter-fill {
-            height: 100%; width: 0%;
-            background: linear-gradient(90deg, #99ccff, #3366cc);
-            transition: width 0.4s ease-out;
-        }
+        /* --- WIDGETS --- */
 
-        /* --- OTHER WIDGETS --- */
-        .module-item {
+        /* Resource Stats */
+        .stat-group { padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #f0f0f0; }
+        .stat-row { font-size: 9px; color: #666; display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .meter-shell { height: 8px; border: 1px solid #999; background: #fff; width: 100%; }
+        .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #88b1ff, #316ac5); transition: width 0.3s; }
+
+        /* Module Dock items */
+        .mod-item {
             display: flex; gap: 8px; align-items: center; padding: 8px;
-            border-bottom: 1px solid #ccc; cursor: pointer; background: #fff;
-            transition: background 0.2s;
+            border-bottom: 1px solid #ccc; background: #fff; cursor: default;
         }
-        .module-item:hover { background: #eefbff; }
-        
+        .mod-item.active { background: #eefbff; cursor: pointer; }
+        .mod-item.disabled { background: #e0e0e0; color: #888; }
+
         .chip-icon { 
             width: 24px; height: 24px; background: #333; 
             border: 1px solid #000; display: grid; place-items: center; 
         }
-        .chip-inner { width: 8px; height: 8px; background: gold; border-radius: 50%; }
-
-        .module-item.is-installed { background: #e0e0e0; cursor: default; }
-        .module-item.is-installed .chip-inner { background: #666; }
+        .chip-led { width: 6px; height: 6px; background: #444; border-radius: 50%; }
+        .mod-item.active .chip-led { background: #0f0; box-shadow: 0 0 4px #0f0; }
         
-        /* Viewport */
-        #stage-wrap {
-            flex: 1; border: 1px inset #fff; background: #888; padding: 20px;
-            background-image: repeating-linear-gradient(45deg, #999 25%, transparent 25%, transparent 75%, #999 75%, #999);
-            background-size: 12px 12px;
-        }
+        /* Lists & Console */
+        ul#file-index { list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; background: #fff; border: 1px solid #aaa; }
+        ul#file-index li { padding: 2px 5px; border-bottom: 1px dotted #ccc; cursor: pointer; display: flex; justify-content: space-between;}
+        ul#file-index li:hover { background: #ddeeff; }
+
+        #term-out { flex:1; background:#fff; overflow-y:auto; border:1px solid #aaa; font-family: var(--font-term); padding:3px; margin-bottom:2px; }
+        #term-in { border:1px solid #aaa; background:#eee; font-family: var(--font-term); }
+
+        /* Viewport / Emulator */
         #visual-out {
-            width: 100%; height: 100%; background: #fff; box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+            width: 100%; height: 100%; background: #000; position: relative;
             display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
+        /* v86 Canvas scaling */
+        #visual-out canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
-        ul#file-index { list-style: none; padding: 0; margin: 0; overflow-y: scroll; flex: 1; background: #fff; border: 1px solid #aaa; }
-        ul#file-index li { padding: 2px 5px; border-bottom: 1px dotted #ccc; }
-        ul#file-index li:hover { background: #eef; cursor: pointer; }
-
-        /* Console */
-        #term-out { flex:1; background:#fff; overflow-y:auto; border:1px solid #aaa; margin-bottom:2px; font-family:var(--font-mono); padding:3px; }
-        #term-in { border:1px solid #aaa; background:#eee; font-family:var(--font-mono); }
-
-        /* Hidden inputs */
         .hidden { display: none !important; }
-        
-        /* Fake BIOS Screens */
-        .os-boot { background: #000; color: #ddd; width:100%; height:100%; padding:20px; font-family: monospace; }
-        .os-gui { background: #008080; width:100%; height:100%; position:relative; }
-        .os-win { 
-            position:absolute; top:20px; left:20px; width:220px; 
-            background: #c0c0c0; border:2px outset #fff; box-shadow: 2px 2px 0 #000; 
-        }
 
     </style>
 </head>
 <body>
 
-<!-- TOOLBAR -->
+<!-- TOP BAR -->
 <div id="toolbar">
-    <div style="font-weight:bold; color:#444; letter-spacing:1px; margin-right: 10px;">WINBOX.MX8</div>
+    <strong style="color:#555; margin-right:10px;">WINBOX.CLOUD</strong>
     <div style="border-left:1px solid #888; height: 16px;"></div>
     
-    <button class="mx-btn" onclick="UI.upload()">Import Files...</button>
-    <button class="mx-btn" onclick="FS.format()" style="color:#a00">Format</button>
+    <button class="mx-btn" onclick="UI.clickUpload()">Import Assets...</button>
+    <button class="mx-btn" onclick="FS.format()" style="color:#900;">Format Disk</button>
     <div id="clock">Running...</div>
 </div>
 
-<input type="file" id="sys-shim" class="hidden" multiple>
+<input type="file" id="sys-upload" class="hidden" multiple>
 
-<!-- LAYOUT -->
+<!-- 3 COLUMN UI -->
 <div id="workspace">
 
-    <!-- LEFT: ASSETS & STATS -->
+    <!-- LEFT: MONITOR & ASSETS -->
     <div class="col-left">
-        <!-- 1. Resource Monitor (Restored!) -->
+        <!-- Resource Monitor -->
         <div class="panel" style="height: auto;">
-            <div class="p-head">Resource Center</div>
+            <div class="p-head">Resources</div>
             <div class="p-body">
                 <div class="stat-group">
-                    
-                    <div class="stat-row"><span>SYS MEMORY</span><span id="txt-ram">Init...</span></div>
+                    <div class="stat-row"><span>HOST RAM</span><span id="lbl-ram">--</span></div>
                     <div class="meter-shell"><div id="bar-ram" class="meter-fill"></div></div>
                     
-                    <div class="stat-row"><span>CPU CYCLES</span><span id="txt-cpu">Init...</span></div>
+                    <div class="stat-row"><span>EMU THREAD</span><span id="lbl-cpu">IDLE</span></div>
                     <div class="meter-shell"><div id="bar-cpu" class="meter-fill"></div></div>
-
-                    <div class="stat-row"><span>DRIVE SPACE</span><span id="txt-dsk">Init...</span></div>
+                    
+                    <div class="stat-row"><span>VIRTUAL DRIVE</span><span id="lbl-dsk">0%</span></div>
                     <div class="meter-shell"><div id="bar-dsk" class="meter-fill"></div></div>
-
                 </div>
             </div>
         </div>
 
-        <!-- 2. Asset Library -->
+        <!-- Files -->
         <div class="panel" style="flex:1;">
-            <div class="p-head">Local Assets</div>
+            <div class="p-head">Asset Index (IDB)</div>
             <div class="p-body" style="padding: 2px;">
                 <ul id="file-index"></ul>
             </div>
         </div>
         
-        <!-- 3. Mini Console -->
+        <!-- Log -->
         <div class="panel" style="height: 120px;">
-            <div class="p-head">SysLog</div>
+            <div class="p-head">System Log</div>
             <div class="p-body" style="padding: 2px;">
-                <div id="term-out">Kernel Ready.</div>
-                <input type="text" id="term-in" placeholder="Cmd..." autocomplete="off">
+                <div id="term-out">Kernel Loaded.<br>x86 Engine Standing By.</div>
+                <input type="text" id="term-in" placeholder=">" autocomplete="off">
             </div>
         </div>
     </div>
@@ -191,13 +173,12 @@
     <!-- CENTER: VIEWPORT -->
     <div class="col-center">
         <div class="panel" style="flex:1;">
-            <div class="p-head"><span id="lbl-view">Viewport [Idle]</span></div>
+            <div class="p-head"><span id="stage-lbl">Visual Stage</span></div>
             <div class="p-body">
-                <div id="stage-wrap">
-                    <div id="visual-out">
-                        <div style="text-align:center; color:#999;">
-                            NO SIGNAL<br><small>Mount a module from the right.</small>
-                        </div>
+                <div id="visual-out">
+                    <div style="text-align:center; color:#666;">
+                        <div style="margin-bottom:10px; font-size:14px; font-weight:bold;">NO ACTIVE OS</div>
+                        Import a .img / .iso file<br>Then enable module in right dock.
                     </div>
                 </div>
             </div>
@@ -207,247 +188,87 @@
     <!-- RIGHT: MODULE DOCK -->
     <div class="col-right">
         <div class="panel" style="flex: 1;">
-            <div class="p-head">Module Bay</div>
-            <div class="p-body" style="background:#e4e4e4;">
+            <div class="p-head">Module Dock</div>
+            <div class="p-body" style="background:#ddd;">
                 
-                <!-- BIOS MODULE -->
-                <div id="mod-bios" class="module-item" onclick="App.installBIOS()">
-                    <div class="chip-icon"><div class="chip-inner"></div></div>
-                    <div style="flex:1">
-                        <div style="font-weight:bold; font-size:10px;">BIOS Firmware</div>
-                        <div style="font-size:9px; color:#666;">Legacy ISO</div>
+                <!-- BOOTABLE DISK MODULE -->
+                <div id="mod-os" class="mod-item disabled">
+                    <div class="chip-icon"><div class="chip-led"></div></div>
+                    <div style="flex:1; overflow:hidden;">
+                        <div style="font-weight:bold; font-size:10px;">OS Bootloader</div>
+                        <div style="font-size:9px; color:#666;" id="mod-os-lbl">No Image</div>
                     </div>
-                    <div id="badge-bios" style="background:#003399; color:#fff; font-size:9px; padding:2px;">INSERT</div>
+                    <button id="btn-run" class="mx-btn hidden" style="padding:1px 6px;">RUN</button>
                 </div>
-
-                <!-- Spacer Modules -->
-                <div class="module-item is-installed">
-                    <div class="chip-icon"><div class="chip-inner" style="background:#555"></div></div>
-                    <div>
-                        <div style="font-weight:bold; font-size:10px; color:#888;">Network Card</div>
-                        <div style="font-size:9px; color:#888;">Hardware</div>
+                
+                <!-- GENERIC INFO MODULE -->
+                <div class="mod-item">
+                    <div class="chip-icon"><div class="chip-led" style="background:#888"></div></div>
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; font-size:10px; color:#555;">Cloud BIOS</div>
+                        <div style="font-size:9px; color:#666;">SeaBIOS v4 (CDN)</div>
                     </div>
                 </div>
 
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- LOGIC -->
 <script>
+/**
+ * WINBOX MX KERNEL [Cloud Edition]
+ * - Uses Namespaced architecture (App, FS, UI, Term)
+ * - Uses UNPKG CDN for emulator files
+ * - Uses IndexedDB for storage
+ */
 
-/* CONFIG */
-const C = {
-    DB: "WINBOX_PRO_V8",
-    VOL: "DISK_A",
-    BIOS_NAME: "BIOS_BOOT.ISO",
+const CONFIG = {
+    DB: "WINBOX_CLOUD", 
+    STORE: "VOL0", 
+    OS_MATCH: /\.(img|iso|bin)$/i,
     LIMIT: 10 * 1024 * 1024 * 1024 // 10GB
 };
 
-/* --- LOGIC CORES --- */
-const App = {};
-const FS = {};
-const UI = {};
-const Term = {};
-const Stats = {}; // New Stats Logic
+/* --- 1. FILE SYSTEM (INDEXED DB) --- */
+const FS = {
+    db: null,
 
-/* FILESYSTEM */
-FS.db = null;
-FS.init = function() {
-    return new Promise(resolve => {
-        if(!indexedDB) return;
-        const r = indexedDB.open(C.DB, 3);
-        r.onupgradeneeded = e => {
-            const d = e.target.result;
-            if(!d.objectStoreNames.contains(C.VOL)) d.createObjectStore(C.VOL, {keyPath:"name"});
-        };
-        r.onsuccess = e => {
-            FS.db = e.target.result;
-            FS.scan();
-            resolve();
-        };
-    });
-};
-
-FS.write = (name, blob, type) => {
-    const tx = FS.db.transaction([C.VOL], "readwrite");
-    tx.objectStore(C.VOL).put({name:name, data:blob, size:blob.size, type:type||blob.type});
-    tx.oncomplete = () => FS.scan();
-};
-
-FS.read = (name, cb) => {
-    const tx = FS.db.transaction([C.VOL], "readonly");
-    const r = tx.objectStore(C.VOL).get(name);
-    r.onsuccess = () => { if(r.result) cb(r.result); else Term.err("File missing"); };
-};
-
-FS.delete = (name) => {
-    const tx = FS.db.transaction([C.VOL], "readwrite");
-    tx.objectStore(C.VOL).delete(name);
-    tx.oncomplete = () => { Term.log("Deleted "+name); FS.scan(); };
-};
-
-FS.format = () => {
-    if(!confirm("Format Disk?")) return;
-    const tx = FS.db.transaction([C.VOL], "readwrite");
-    tx.objectStore(C.VOL).clear();
-    tx.oncomplete = () => { Term.log("Formatted"); FS.scan(); };
-};
-
-FS.scan = () => {
-    const list = document.getElementById("file-index");
-    list.innerHTML = "";
-    let biosLocked = false;
-    let usedBytes = 0;
-
-    const tx = FS.db.transaction([C.VOL], "readonly");
-    tx.objectStore(C.VOL).openCursor().onsuccess = e => {
-        const c = e.target.result;
-        if(c) {
-            const f = c.value;
-            usedBytes += f.size;
-            if(f.name === C.BIOS_NAME) biosLocked = true;
-            
-            const li = document.createElement("li");
-            li.innerHTML = `<span>${f.name}</span> <span style="color:#aaa">${Stats.fmt(f.size)}</span>`;
-            li.onclick = () => App.load(f.name);
-            list.appendChild(li);
-            c.continue();
-        } else {
-            // Finish scan
-            UI.updateModuleBay(biosLocked);
-            Stats.updateDisk(usedBytes);
-        }
-    };
-};
-
-/* APP LOGIC */
-App.installBIOS = () => {
-    Term.log("Firmware insertion detecting...");
-    setTimeout(() => {
-        const b = new Blob(["BIOS_BINARY"], {type:'application/octet-stream'});
-        FS.write(C.BIOS_NAME, b, 'sys/iso');
-        Term.log("BIOS Firmware mounted.");
-    }, 400);
-};
-
-App.load = (name) => {
-    document.getElementById("lbl-view").innerText = "Viewport: " + name;
-    FS.read(name, (f) => {
-        const stg = document.getElementById("visual-out");
-        stg.innerHTML = "";
-        
-        if(f.name === C.BIOS_NAME) App.bootBIOS(stg);
-        else if(f.type.includes('image')) {
-            let i = new Image(); i.src = URL.createObjectURL(f.data);
-            i.style.maxWidth="100%"; i.style.maxHeight="100%"; stg.appendChild(i);
-        } else {
-            let r = new FileReader();
-            r.onload = e => {
-                let p = document.createElement("pre");
-                p.innerText=e.target.result.substring(0,600);
-                p.style.padding="20px";
-                stg.appendChild(p);
+    init: async function() {
+        return new Promise(resolve => {
+            if(!window.indexedDB) return Term.err("No DB Support");
+            const req = indexedDB.open(CONFIG.DB, 3);
+            req.onupgradeneeded = e => {
+                let d = e.target.result;
+                if(!d.objectStoreNames.contains(CONFIG.STORE)) d.createObjectStore(CONFIG.STORE, {keyPath:"name"});
             };
-            r.readAsText(f.data);
-        }
-    });
-};
+            req.onsuccess = e => {
+                FS.db = e.target.result;
+                FS.scan();
+                resolve();
+            };
+        });
+    },
 
-App.bootBIOS = (container) => {
-    container.innerHTML = `<div class="os-boot">MX BIOS v4.0<br>Checking Memory...<br>Disk: OK<br>Loading...</div>`;
-    setTimeout(() => {
-        container.innerHTML = `
-        <div class="os-gui">
-            <div class="os-win">
-                <div style="background:navy; color:white; padding:2px; font-weight:bold">Virtual Loader</div>
-                <div style="padding:10px; color:black">OS Simulation Running...<br>Mem: 64MB</div>
-            </div>
-        </div>`;
-    }, 1500);
-};
+    save: function(name, blob, type) {
+        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+        tx.objectStore(CONFIG.STORE).put({name:name, data:blob, size:blob.size, type:type||blob.type});
+        tx.oncomplete = () => FS.scan();
+    },
 
-/* STATS ENGINE (Restored) */
-Stats.init = function() {
-    // RAM
-    const ram = (navigator.deviceMemory || 8);
-    document.getElementById("txt-ram").innerText = ram + " GB (Host)";
-    
-    // CPU Flutter Loop
-    setInterval(() => {
-        const c = Math.floor(Math.random() * 40); // 0-40% idle flutter
-        const r = Math.floor(Math.random() * 20 + 20); 
-        document.getElementById("bar-cpu").style.width = c + "%";
-        document.getElementById("bar-ram").style.width = r + "%";
-        document.getElementById("txt-cpu").innerText = c + "% Usage";
-    }, 1200);
-};
+    get: function(name, cb) {
+        let tx = FS.db.transaction([CONFIG.STORE], "readonly");
+        let r = tx.objectStore(CONFIG.STORE).get(name);
+        r.onsuccess = () => cb(r.result || null);
+    },
 
-Stats.updateDisk = (used) => {
-    const p = (used / C.LIMIT) * 100;
-    document.getElementById("bar-dsk").style.width = p + "%";
-    document.getElementById("txt-dsk").innerText = Stats.fmt(used) + " / 10 GB";
-};
+    del: function(name) {
+        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+        tx.objectStore(CONFIG.STORE).delete(name);
+        tx.oncomplete = () => { Term.log("Deleted "+name); FS.scan(); };
+    },
 
-Stats.fmt = (b) => {
-    if(b==0) return "0B";
-    const i = Math.floor(Math.log(b)/Math.log(1024));
-    return (b/Math.pow(1024,i)).toFixed(1)+['B','KB','MB','GB'][i];
-};
-
-
-/* UI UTILS */
-UI.upload = () => document.getElementById("sys-shim").click();
-
-UI.updateModuleBay = (locked) => {
-    const m = document.getElementById("mod-bios");
-    const b = document.getElementById("badge-bios");
-    if(locked) {
-        m.classList.add("is-installed");
-        b.style.background = "#666"; b.innerText = "MOUNTED";
-    } else {
-        m.classList.remove("is-installed");
-        b.style.background = "#003399"; b.innerText = "INSERT";
-    }
-};
-
-Term.log = (t) => {
-    const c = document.getElementById("term-out");
-    const d = document.createElement("div"); d.innerText="> "+t;
-    c.appendChild(d); c.scrollTop=c.scrollHeight;
-};
-
-Term.err = (t) => {
-    const c = document.getElementById("term-out");
-    const d = document.createElement("div"); d.innerText="ERR: "+t; d.style.color="red";
-    c.appendChild(d); c.scrollTop=c.scrollHeight;
-};
-
-/* BOOT */
-window.onload = function() {
-    // Clock
-    setInterval(() => {
-        const d = new Date();
-        document.getElementById("clock").innerText = d.getHours() + ":" + d.getMinutes().toString().padStart(2,'0');
-    }, 1000);
-
-    // Event Bindings
-    document.getElementById("term-in").addEventListener("keydown", e => {
-        if(e.key === 'Enter'){ let v=e.target.value.trim(); if(v){ Term.log(v); e.target.value=''; }}
-    });
-    
-    document.getElementById("sys-shim").onchange = e => {
-        Array.from(e.target.files).forEach(f => FS.write(f.name, f));
-        e.target.value='';
-    };
-
-    FS.init();
-    Stats.init();
-    Term.log("Sys Stats Online.");
-};
-
-</script>
-</body>
-</html>
+    format: function() {
+        if(!confirm("Format Disk?")) return;
+        let tx = FS.db.transaction([CONFIG.STORE], "readwrite");
+        tx.objectStore(CONFI
